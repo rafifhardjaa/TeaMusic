@@ -1,0 +1,20 @@
+{
+  "name": "vibe-track-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "THE Vibe LAB \u2014 anonymous song messages with a note attached.",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:api": "bun run --cwd apps/api dev",
+    "dev:web": "pnpm --dir apps/web dev",
+    "build": "pnpm --dir apps/web build",
+    "lint": "pnpm --dir apps/web lint",
+    "typecheck": "pnpm --dir apps/web exec tsc -b && bun run --cwd apps/api typecheck",
+    "check:api": "pnpm --dir apps/web run check:api",
+    "check:phosphor": "pnpm --dir apps/web run check:phosphor",
+    "check:security": "bun run scripts/security.check.ts",
+    "check:seo": "bun run scripts/seo.check.ts",
+    "check:sanitize": "bun run scripts/sanitize.check.ts",
+    "db:apply": "psql \"$SUPABASE_DB_URL\" -f supabase/schema.sql"
+  }
+}

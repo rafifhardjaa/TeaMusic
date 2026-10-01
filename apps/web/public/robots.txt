@@ -1,0 +1,6 @@
+# https://teamusic.my.id/robots.txt
+User-agent: *
+Allow: /
+Disallow: /history
+
+Sitemap: https://teamusic.my.id/sitemap.xml
