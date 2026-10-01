@@ -2,13 +2,23 @@ import { Elysia, t, type ElysiaAdapter } from 'elysia';
 import { config } from './config';
 import { ZODIAC_SIGNS, MOODS } from './domain';
 import { imageRoutes } from './image';
-import { lookupTrack, searchTracks } from './itunes';
 import { logBreadcrumb, logError } from './log';
 
 /**
- * The API owns provider integration. Message persistence is deliberately
- * absent: the browser talks to Supabase directly with the publishable key, per
- * ARCHITECTURE.md ("Supabase handles direct data insertion and retrieval").
+ * What this API carries: the static surface (health, zodiac/mood metadata),
+ * the cover-art proxy canvas export needs, and the error sink the browser
+ * reports crashes to.
+ *
+ * Track search and lookup deliberately do NOT live here. iTunes answers the
+ * browser directly (`Access-Control-Allow-Origin: *`, preflight included), and
+ * Apple rate-limits datacenter egress hard — from Cloudflare's IPs every
+ * request came back 403/429, while each visitor's own address sails through.
+ * The proxy was the unreliable half of that pair, so the browser calls the
+ * provider itself: see `apps/web/src/lib/api.ts`.
+ *
+ * Message persistence is likewise absent: the browser talks to Supabase
+ * directly with the publishable key, per ARCHITECTURE.md ("Supabase handles
+ * direct data insertion and retrieval").
  *
  * The same app object serves both deployments: `src/index.ts` builds it for
  * Bun (local development, anything that runs a process), `src/worker.ts` for
@@ -107,45 +117,6 @@ export function createApp(adapter?: ElysiaAdapter) {
     .get('/api/health', () => ({ ok: true, provider: 'itunes' as const }))
 
     .get('/api/meta', () => ({ zodiac: ZODIAC_SIGNS, moods: MOODS, provider: 'itunes' as const }))
-
-    .get(
-      '/api/tracks/search',
-      async ({ query, set }) => {
-        try {
-          const tracks = await searchTracks(query.q ?? '', Number(query.limit ?? 12));
-          return { provider: 'itunes' as const, tracks };
-        } catch (error) {
-          set.status = 502;
-          logError('[tracks/search]', error);
-          return { error: config.debug && error instanceof Error ? error.message : 'Track search failed' };
-        }
-      },
-      {
-        query: t.Object({
-          q: t.Optional(t.String({ maxLength: 200 })),
-          limit: t.Optional(t.Numeric()),
-        }),
-      },
-    )
-
-    .get(
-      '/api/tracks/:id',
-      async ({ params, set }) => {
-        try {
-          const track = await lookupTrack(params.id);
-          if (!track) {
-            set.status = 404;
-            return { error: 'Track not found' };
-          }
-          return { provider: 'itunes' as const, track };
-        } catch (error) {
-          set.status = 502;
-          logError('[tracks/lookup]', error);
-          return { error: config.debug && error instanceof Error ? error.message : 'Track lookup failed' };
-        }
-      },
-      { params: t.Object({ id: t.String({ minLength: 1, maxLength: 32 }) }) },
-    )
 
     /**
      * Receives errors the browser caught but React swallowed. Without this the

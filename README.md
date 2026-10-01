@@ -76,7 +76,7 @@ cp apps/web/.env.example apps/web/.env.local
 | `VITE_APP_ENV`                  | Optional. Browser mirror of the API's `APP_ENV`  |
 | `VITE_APP_DEBUG`                | Optional. Browser mirror of the API's `APP_DEBUG`|
 
-The API needs no credentials at all: iTunes Search API is free and unauthenticated. Its optional config lives in `apps/api/.env` (copy `apps/api/.env.example`):
+The API needs no credentials at all — it never talks to the provider either (see the API section). Its optional config lives in `apps/api/.env` (copy `apps/api/.env.example`):
 
 | Variable        | What it is                                                  |
 | --------------- | ----------------------------------------------------------- |
@@ -122,14 +122,12 @@ Omitting a policy denies the operation outright. Since a public INSERT endpoint 
 
 ## API
 
-The API owns provider integration. Message persistence is not here: the browser talks to Supabase directly with the publishable key, per ARCHITECTURE.md.
+The API carries only what a browser cannot do for itself. Message persistence is not here: the browser talks to Supabase directly with the publishable key, per ARCHITECTURE.md. Track search is not here either — see *Why track search is not on the API* below.
 
 | Method | Route                | Purpose                             |
 | ------ | -------------------- | ----------------------------------- |
-| GET    | `/api/health`        | Provider status                     |
+| GET    | `/api/health`        | Service status                      |
 | GET    | `/api/meta`          | Zodiac + mood vocabularies          |
-| GET    | `/api/tracks/search` | iTunes track search                 |
-| GET    | `/api/tracks/:id`    | Track lookup by id                  |
 | GET    | `/api/image?url=`    | Cover art proxy for image export    |
 | POST   | `/api/errors`        | Client breadcrumbs and error logs   |
 
@@ -138,6 +136,17 @@ zodiac and mood into an iTunes search (two words out of twenty give 96 distinct
 queries), so the same pair always asks the provider for the same things. The
 exported card's colours come from the cover art itself, with a fixed house
 palette as the fallback when extraction fails.
+
+### Why track search is not on the API
+
+iTunes answers browsers directly — `Access-Control-Allow-Origin: *`, preflight
+included — so `apps/web/src/lib/api.ts` calls the provider itself, carrying the
+visitor's own IP. That matters because Apple rate-limits datacenter addresses
+into the ground: behind Cloudflare Workers every search came back 429 and every
+lookup 403, while the same requests from a residential connection succeed on
+the first try. A server-side proxy would have been the unreliable half of the
+pair. The documented limit (~20 requests per minute) is per IP — per visitor —
+and far above what one person generates while searching.
 
 ### Why the image proxy exists
 
@@ -192,8 +201,8 @@ keeps both honest from the browser. Neither host needs a payment method.
   | `APP_DEBUG`      | `false`                 | belt and braces — production ignores it anyway |
   | `ALLOWED_ORIGIN` | `https://teamusic.my.id` | the only origin the API answers with CORS headers |
 
-  Nothing else: iTunes needs no key, and messages go browser → Supabase
-  directly.
+  Nothing else: messages go browser → Supabase directly, and track lookups
+  never pass through this worker — the browser calls iTunes itself.
 - **Domain:** Workers → *teamusic-api* → Settings → Domains & Routes →
   Custom Domains → `api.teamusic.my.id`. The zone lives on the same account,
   so the DNS record and the certificate are created automatically.

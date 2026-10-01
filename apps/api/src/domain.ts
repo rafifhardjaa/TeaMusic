@@ -23,15 +23,3 @@ export const MOODS = [
   'chilled',
   'restless',
 ] as const;
-
-export interface Track {
-  id: string;
-  name: string;
-  artist: string;
-  album: string;
-  genre: string;
-  coverUrl: string;
-  previewUrl: string | null;
-  durationMs: number;
-  externalUrl: string;
-}

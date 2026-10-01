@@ -8,7 +8,7 @@ import { log } from './log';
  */
 const app = createApp().listen(config.port);
 
-// The banner names a port and a provider, so it belongs to the same switch as
+// The banner names a port, so it belongs to the same switch as
 // the error detail rather than to stdout unconditionally.
 log(`TeaMusic API listening on http://localhost:${config.port}`);
-log(`  env: ${config.appEnv} — tracks: iTunes Search API`);
+log(`  env: ${config.appEnv} — track lookups happen in the browser`);

@@ -11,10 +11,18 @@ name = "teamusic-api"
 main = "src/worker.ts"
 compatibility_date = "2026-10-01"
 
+# Attach the API hostname on the same Cloudflare account that owns the zone.
+# `custom_domain = true` makes wrangler create the DNS record and certificate
+# itself, so nothing has to be pointed by hand; the zone lives on this
+# account, which is what makes it possible.
+routes = [
+  { pattern = "api.teamusic.my.id", custom_domain = true },
+]
+
 # Workers delivers these as bindings with the first request; src/config.ts
 # picks them up through reconfigure() before the app is built. Nothing else
-# is needed: iTunes needs no key, and messages travel browser -> Supabase
-# directly.
+# is needed: the browser calls iTunes itself (Apple rate-limits datacenter
+# addresses), and messages travel browser -> Supabase directly.
 [vars]
 APP_ENV = "production"
 APP_DEBUG = "false"

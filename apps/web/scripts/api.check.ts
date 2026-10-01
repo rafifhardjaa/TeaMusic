@@ -10,6 +10,10 @@ import type { Track } from '../src/lib/types';
  * a permanently missing track after a single cancelled request. Both fail only
  * at runtime, in a browser, with no error — so they are pinned here instead.
  *
+ * The mocked replies are the provider's own shape (`{ results: [...] }`),
+ * because the browser now calls iTunes directly: api.ts maps each item to a
+ * Track itself, and the mapping is exercised by every assertion below.
+ *
  * Run: bun run check:api
  */
 
@@ -25,8 +29,21 @@ const TRACK: Track = {
   externalUrl: 'https://music.apple.com/track/1',
 };
 
+/** What iTunes actually returns; `upscaleArtwork` leaves a non-CDN url alone. */
+const ITEM = {
+  trackId: 1,
+  trackName: TRACK.name,
+  artistName: TRACK.artist,
+  collectionName: TRACK.album,
+  primaryGenreName: TRACK.genre,
+  artworkUrl100: TRACK.coverUrl,
+  previewUrl: TRACK.previewUrl,
+  trackTimeMillis: TRACK.durationMs,
+  trackViewUrl: TRACK.externalUrl,
+};
+
 type Reply = { ok: boolean; status: number; body: unknown };
-let reply: Reply = { ok: true, status: 200, body: { provider: 'itunes', track: TRACK } };
+let reply: Reply = { ok: true, status: 200, body: { resultCount: 1, results: [ITEM] } };
 let calls: string[] = [];
 
 globalThis.fetch = (async (input: string) => {
@@ -45,23 +62,35 @@ assert.equal((await getTrack('1'))?.name, TRACK.name);
 assert.equal(calls.length, 1, 'second getTrack("1") should not hit the network');
 console.log('ok  hit is cached, no refetch');
 
-// 2. A 404 is cached as null and not retried — a missing track is as final as a hit.
+// 2. An id the provider does not know answers with an empty result set, which
+//    is cached as null and not retried — a missing track is as final as a hit.
 calls = [];
-reply = { ok: false, status: 404, body: { error: 'not found' } };
+reply = { ok: true, status: 200, body: { resultCount: 0, results: [] } };
 assert.equal(await getTrack('gone'), null);
 assert.equal(await getTrack('gone'), null);
-assert.equal(calls.length, 1, 'a 404 should be cached as null, not retried');
-console.log('ok  404 is cached as null, not retried');
+assert.equal(calls.length, 1, 'an empty lookup should be cached as null, not retried');
+console.log('ok  empty result set is cached as null, not retried');
 
 // 3. A transport failure is NOT cached: the next call must try again.
 calls = [];
 reply = { ok: true, status: 0, body: null };
-await assert.rejects(() => getTrack('flaky'), /Cannot reach the API/);
+await assert.rejects(() => getTrack('flaky'), /Cannot reach iTunes/);
 assert.equal(calls.length, 1);
-reply = { ok: true, status: 200, body: { provider: 'itunes', track: TRACK } };
+reply = { ok: true, status: 200, body: { resultCount: 1, results: [ITEM] } };
 assert.equal((await getTrack('flaky'))?.name, TRACK.name, 'a failed lookup must not poison the cache');
 assert.equal(calls.length, 2);
 console.log('ok  transport failure is not cached, retry succeeds');
+
+// 3b. A rate-limit refusal is NOT cached either —429 is about the moment, not
+//     about the track, and caching it would hide the track for the session.
+calls = [];
+reply = { ok: false, status: 429, body: { errorMessage: 'rate limited' } };
+await assert.rejects(() => getTrack('throttled'), /rate limited/);
+assert.equal(calls.length, 1);
+reply = { ok: true, status: 200, body: { resultCount: 1, results: [ITEM] } };
+assert.equal((await getTrack('throttled'))?.name, TRACK.name, 'a rate limit must not poison the cache');
+assert.equal(calls.length, 2);
+console.log('ok  rate-limit refusal is not cached, retry succeeds');
 
 // 4. An abort propagates and is NOT cached as null.
 globalThis.fetch = (async () => {
@@ -74,7 +103,7 @@ await assert.rejects(
 calls = [];
 globalThis.fetch = (async (input: string) => {
   calls.push(input);
-  return { ok: true, status: 200, json: async () => ({ provider: 'itunes', track: TRACK }) } as Response;
+  return { ok: true, status: 200, json: async () => ({ resultCount: 1, results: [ITEM] }) } as Response;
 }) as typeof fetch;
 assert.equal((await getTrack('aborted'))?.name, TRACK.name, 'an abort must not be cached as a missing track');
 assert.equal(calls.length, 1);

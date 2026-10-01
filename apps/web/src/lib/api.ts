@@ -44,10 +44,93 @@ export function getHealth(signal?: AbortSignal): Promise<ApiHealth> {
   return request<ApiHealth>('/api/health', { signal });
 }
 
+/**
+ * The provider is called from the browser, not through this API: iTunes
+ * answers with `access-control-allow-origin: *` (preflight included), so the
+ * request carries the visitor's own address — the one thing a shared server
+ * cannot borrow. Apple rate-limits datacenter egress into the ground (a
+ * Cloudflare Worker got 403/429 on every call), while a residential client
+ * sits well inside the documented ~20 requests per minute.
+ */
+const ITUNES_SEARCH = 'https://itunes.apple.com/search';
+const ITUNES_LOOKUP = 'https://itunes.apple.com/lookup';
+const STOREFRONT = 'US';
+
+interface ITunesItem {
+  trackId: number;
+  trackName: string;
+  artistName: string;
+  collectionName: string;
+  primaryGenreName: string;
+  artworkUrl100: string;
+  previewUrl: string | null;
+  trackTimeMillis: number;
+  trackViewUrl: string;
+}
+
+/** iTunes only serves 100px artwork. Its CDN path is templated, so swapping
+ * the size segment is the supported way to ask for a larger one. */
+function upscaleArtwork(url: string): string {
+  return url.replace(/\/100x100bb\.(jpg|png)$/, '/600x600bb.$1');
+}
+
+function toTrack(item: ITunesItem): Track {
+  return {
+    id: String(item.trackId),
+    name: item.trackName,
+    artist: item.artistName,
+    album: item.collectionName,
+    genre: item.primaryGenreName,
+    coverUrl: upscaleArtwork(item.artworkUrl100),
+    previewUrl: item.previewUrl,
+    durationMs: item.trackTimeMillis,
+    externalUrl: item.trackViewUrl,
+  };
+}
+
+function clampLimit(value: number, max: number): number {
+  return Math.min(max, Math.max(1, Math.round(value)));
+}
+
+async function itunes<T>(url: URL, signal?: AbortSignal): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(url, { signal, headers: { Accept: 'application/json' } });
+  } catch (error) {
+    if (isAbortError(error)) throw error;
+    throw new ApiError('Cannot reach iTunes. Check your connection.', 0);
+  }
+
+  const payload = (await response.json().catch(() => null)) as (T & { errorMessage?: string }) | null;
+  if (!response.ok) {
+    // A rate-limit or transient refusal is not a fact about the track, so it
+    // is thrown — never cached — and the next attempt asks again.
+    throw new ApiError(payload?.errorMessage ?? `iTunes request failed with status ${response.status}`, response.status);
+  }
+  return payload as T;
+}
+
+/**
+ * Only returns tracks that carry a preview clip.
+ *
+ * `messages.preview_url` is NOT NULL in the schema, so surfacing a track the
+ * user cannot actually send would guarantee a failed insert. Measured across
+ * ~500 US storefront song results this filter removes nothing in practice; it
+ * exists so the constraint is a statement about the data rather than a hope.
+ */
 export async function searchTracks(query: string, limit = 12, signal?: AbortSignal): Promise<Track[]> {
-  const params = new URLSearchParams({ q: query, limit: String(limit) });
-  const { tracks } = await request<{ provider: string; tracks: Track[] }>(`/api/tracks/search?${params}`, { signal });
-  return tracks;
+  const url = new URL(ITUNES_SEARCH);
+  url.searchParams.set('term', query);
+  url.searchParams.set('entity', 'song');
+  url.searchParams.set('media', 'music');
+  url.searchParams.set('country', STOREFRONT);
+  url.searchParams.set('limit', String(clampLimit(limit, 50)));
+
+  const payload = await itunes<{ results: ITunesItem[] }>(url, signal);
+  return payload.results
+    .filter((item) => Boolean(item.trackId) && Boolean(item.previewUrl))
+    .map(toTrack)
+    .slice(0, limit);
 }
 
 /**
@@ -57,9 +140,10 @@ export async function searchTracks(query: string, limit = 12, signal?: AbortSign
  * the app's only repeat traffic: the detail modal re-requests the same track on
  * every open, and seed hydration requests three more.
  *
- * 404s are cached as `null` on purpose — a missing track is as final as a hit,
- * and re-asking for one gains nothing. Aborts and transport failures are not
- * cached, since both are expected to succeed on a retry.
+ * An id iTunes does not know answers with an empty result set — as final as a
+ * hit, and cached as null for the same reason. Aborts, transport failures and
+ * rate-limit refusals are not cached, since all three are expected to succeed
+ * on a retry.
  *
  * ponytail: unbounded for the life of the tab. Fine at session scale; a visitor
  * opening thousands of distinct tracks should cap it (LRU by insertion order).
@@ -73,21 +157,14 @@ const trackCache = new Map<string, Track | null>();
 export async function getTrack(id: string, signal?: AbortSignal): Promise<Track | null> {
   if (trackCache.has(id)) return trackCache.get(id) ?? null;
 
-  try {
-    const { track } = await request<{ provider: string; track: Track }>(
-      `/api/tracks/${encodeURIComponent(id)}`,
-      { signal },
-    );
-    trackCache.set(id, track);
-    return track;
-  } catch (error) {
-    // Rethrown untouched so an aborted lookup stays abortable for the caller,
-    // and must not poison the cache with a null the caller reads as "no track".
-    if (isAbortError(error)) throw error;
-    if (error instanceof ApiError && error.status === 404) {
-      trackCache.set(id, null);
-      return null;
-    }
-    throw error;
-  }
+  const url = new URL(ITUNES_LOOKUP);
+  url.searchParams.set('id', id);
+  url.searchParams.set('entity', 'song');
+  url.searchParams.set('country', STOREFRONT);
+
+  const payload = await itunes<{ results: ITunesItem[] }>(url, signal);
+  const first = payload.results.find((item) => item.trackId);
+  const track = first ? toTrack(first) : null;
+  trackCache.set(id, track);
+  return track;
 }
