@@ -1,0 +1,26 @@
+# Cloudflare Workers deployment for the API.
+#
+#   bunx wrangler login          # once — same account that owns the zone
+#   cd apps/api && bun run deploy
+#
+# Local dev against the real Worker runtime (workerd, no account needed):
+#
+#   bun run dev:worker           # serves on :8787
+
+name = "teamusic-api"
+main = "src/worker.ts"
+compatibility_date = "2026-10-01"
+
+# Workers delivers these as bindings with the first request; src/config.ts
+# picks them up through reconfigure() before the app is built. Nothing else
+# is needed: iTunes needs no key, and messages travel browser -> Supabase
+# directly.
+[vars]
+APP_ENV = "production"
+APP_DEBUG = "false"
+ALLOWED_ORIGIN = "https://teamusic.my.id"
+
+# /api/errors exists to record production crashes; Workers Logs is where
+# those lines land (included in the free tier).
+[observability]
+enabled = true

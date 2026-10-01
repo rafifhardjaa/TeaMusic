@@ -1,5 +1,5 @@
 /**
- * The share-preview injector.
+ * The share-preview injector — Vercel's Routing Middleware.
  *
  * A `/?m=<id>` link is opened in one of two very different ways: by a person,
  * who gets the React app, and by WhatsApp / Instagram / Telegram, which fetch
@@ -8,14 +8,15 @@
  * receives, which means the row has to be fetched here, at the edge, and
  * written into the tags before the response leaves.
  *
- * Only the two shareable routes are routed through this function (see
- * `public/_routes.json`); every other request keeps the static path and costs
- * no invocation. The defaults in `index.html` cover the rest, so a Supabase
- * outage degrades to a generic card instead of an error page.
+ * Only the two shareable routes are routed through this file (see the
+ * `config` export at the bottom); every other request keeps the static path
+ * and costs no invocation. The defaults in `index.html` cover the rest, so a
+ * Supabase outage degrades to a generic card instead of an error page.
  *
- * Runs on Cloudflare Workers — no Node APIs, no bundler imports. The helpers
- * are exported so `scripts/seo.check.ts` can assert on them directly.
+ * The helpers are exported so `scripts/seo.check.ts` can assert on them
+ * directly — the checks run under bun, with no Vercel in the room.
  */
+import { next } from '@vercel/functions';
 
 const SITE = 'https://teamusic.my.id';
 
@@ -34,7 +35,7 @@ export interface Env {
   VITE_SUPABASE_PUBLISHABLE_KEY?: string;
 }
 
-export interface PagesContext {
+export interface HandlerContext {
   request: Request;
   env: Env;
 }
@@ -241,7 +242,7 @@ export async function resolveCard(url: URL, env: Env): Promise<Card | null> {
   return null;
 }
 
-export async function onRequest(context: PagesContext): Promise<Response> {
+export async function onRequest(context: HandlerContext): Promise<Response> {
   const { request, env } = context;
   const url = new URL(request.url);
 
@@ -265,3 +266,50 @@ export async function onRequest(context: PagesContext): Promise<Response> {
   const headers = new Headers({ 'content-type': 'text/html; charset=utf-8', 'cache-control': CACHE_CONTROL });
   return request.method === 'HEAD' ? new Response(null, { status: 200, headers }) : new Response(body, { headers });
 }
+
+/**
+ * Marks our own fetch of the document root. That request matches the same
+ * matcher as the one that started it, so without this marker the middleware
+ * would fetch itself forever; with it, the second invocation passes the
+ * request straight through to the static asset and returns the untouched
+ * HTML. A visitor sending the header by hand only gets the default card,
+ * which the route would serve anyway.
+ */
+const SENTINEL = 'x-teamusic-assets';
+
+// The runtime injects the project's environment variables; there are no Node
+// types in this project's tsconfig, so the shape is declared where it is used.
+declare const process: { env: Record<string, string | undefined> };
+
+/**
+ * The Routing Middleware entry. Vercel looks for this file at the project
+ * root (the Root Directory of the deployment) and runs it before the static
+ * filesystem — so everything below sees the original URL, and the response it
+ * builds is what the crawler receives.
+ */
+export default async function middleware(request: Request): Promise<Response> {
+  // Our own document fetch arrives here marked; serve the asset instead of
+  // injecting a card into the very HTML we are about to rewrite.
+  if (request.headers.has(SENTINEL)) return next();
+
+  if (request.method !== 'GET' && request.method !== 'HEAD') return next();
+
+  const env: Env = {
+    ASSETS: {
+      fetch: (input: RequestInfo | URL): Promise<Response> =>
+        fetch(new Request(input, { headers: { [SENTINEL]: '1' } })),
+    },
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    VITE_SUPABASE_PUBLISHABLE_KEY: process.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+  };
+
+  return onRequest({ request, env });
+}
+
+export const config = {
+  // Only the two shareable routes ever need a card; everything else stays a
+  // plain static request that never invokes this file. `:path*` covers the
+  // bare `/to` entry page as well as `/to/<name>`.
+  matcher: ['/', '/to/:path*'],
+  runtime: 'nodejs',
+};

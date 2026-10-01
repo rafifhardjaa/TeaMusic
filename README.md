@@ -11,7 +11,7 @@ Anonymous song messages with a note attached. Pick a track, write the message, m
 | Animation  | GSAP (ScrollTrigger), CSS only for marquee   |
 | Icons      | Phosphor only, zero emojis                   |
 | Design     | Adopted from the `vibe.html` prototype        |
-| Backend    | ElysiaJS on Bun 1.4                          |
+| Backend    | ElysiaJS — Bun locally, Cloudflare Workers live |
 | Tracks     | iTunes Search API (free, no auth)            |
 | Database   | Supabase (PostgreSQL), accessed from browser |
 | External   | Web Share API                                |
@@ -166,65 +166,86 @@ framework, one runnable proof per piece of non-trivial logic.
 
 ## Deploy
 
-Two services on one domain: `teamusic.my.id` serves the app, the Render service
-answers `/api/*`, and Supabase keeps both honest from the browser.
+Two hosts, one domain: `teamusic.my.id` serves the app from Vercel,
+`api.teamusic.my.id` answers `/api/*` from a Cloudflare Worker, and Supabase
+keeps both honest from the browser. Neither host needs a payment method.
 
-### API — Render (Docker)
+### API — Cloudflare Workers
 
-- **Service:** Web Service, runtime **Docker**, Dockerfile path
-  `apps/api/Dockerfile` with the root directory left empty — the build context
-  is the repository root, which is what the `COPY` lines assume
-  (`docker build -f apps/api/Dockerfile .` locally).
-- **Port:** nothing to configure. Render puts the port in `PORT` and the
-  process binds `0.0.0.0:$PORT`; `8787` is only the local fallback, and the
-  `EXPOSE` line in the image is documentation.
-- **Environment:**
+- **Deploy:** `wrangler` logs in with the Cloudflare account that owns the
+  zone, then ships the Worker:
 
-  | Variable            | Value                  | Why                                  |
-  | ------------------- | ---------------------- | ------------------------------------ |
-  | `APP_ENV`           | `production`           | forces every verbose path off        |
-  | `APP_DEBUG`         | `false`                | belt and braces — production ignores it anyway |
-  | `ALLOWED_ORIGIN`    | `https://teamusic.my.id` | the only origin the API answers with CORS headers |
+  ```bash
+  bunx wrangler login            # once, opens a browser
+  cd apps/api && bun run deploy
+  ```
 
-  Nothing else: iTunes needs no key, messages go browser → Supabase, and the
-  image deliberately contains no `.env` file. The root `render.yaml` carries
-  the same three, so connecting the repo provisions the service as written.
-- **Health check:** `GET /api/health` (`{"ok":true,...}`), set as the
-  service's Health Check Path.
-- The free instance sleeps after 15 minutes without traffic and needs roughly
-  50 s to wake, which is a slow first search, not an outage.
+- **Runtime:** `wrangler.toml` points at `src/worker.ts` — the same Elysia app
+  `src/index.ts` runs under Bun, built with the official Cloudflare adapter.
+  No container, no sleep after 15 minutes: the free tier covers 100 000
+  requests per day, and this API is nowhere near it.
+- **Environment:** lives in `wrangler.toml` under `[vars]`:
 
-### Web — Cloudflare Pages
+  | Variable         | Value                   | Why                                   |
+  | ---------------- | ----------------------- | ------------------------------------- |
+  | `APP_ENV`        | `production`            | forces every verbose path off         |
+  | `APP_DEBUG`      | `false`                 | belt and braces — production ignores it anyway |
+  | `ALLOWED_ORIGIN` | `https://teamusic.my.id` | the only origin the API answers with CORS headers |
 
-- **Root directory:** `apps/web` · **build:** `corepack enable && pnpm install
-  && pnpm build` · **output:** `dist`.
-- **Environment** (build time, plain text — the Pages Function reads the same
-  names at runtime, so do not encrypt them):
+  Nothing else: iTunes needs no key, and messages go browser → Supabase
+  directly.
+- **Domain:** Workers → *teamusic-api* → Settings → Domains & Routes →
+  Custom Domains → `api.teamusic.my.id`. The zone lives on the same account,
+  so the DNS record and the certificate are created automatically.
+- **Logs:** `[observability]` is enabled in `wrangler.toml`; breadcrumbs
+  posted to `/api/errors` land in Workers → Observability (free tier
+  includes them).
+- **Local dev:** unchanged — `pnpm run dev:api` runs
+  `bun --watch src/index.ts` on `:8787`. To run the real Worker runtime
+  locally instead (workerd, no account needed): `bun run dev:worker`.
 
-  | Variable                      | Value                                      |
-  | ----------------------------- | ------------------------------------------ |
-  | `VITE_SUPABASE_URL`           | from `apps/web/.env.local`                 |
-  | `VITE_SUPABASE_PUBLISHABLE_KEY` | the publishable key next to it            |
-  | `VITE_API_BASE_URL`           | the Render service URL, e.g. `https://teamic-api.onrender.com` |
-  | `VITE_APP_ENV`                | `production`                               |
-  | `VITE_APP_DEBUG`              | `false`                                    |
+### Web — Vercel
 
-  With no Supabase variables the build is not broken — it runs in local mode —
-  it is simply not the live site.
-- **Domain:** add `teamusic.my.id` under Custom domains. If the zone already
-  sits on Cloudflare, Pages creates the record itself.
-- **Share previews:** `apps/web/public/_routes.json` sends only `/` and `/to/*`
-  through the Pages Function in `apps/web/functions/`; everything else is a
-  static file, so the function costs nothing on the routes that need no card.
+- **Project:** import the repository and set **Root Directory** to
+  `apps/web`. Everything else is pinned in `apps/web/vercel.json`: install
+  `pnpm install --frozen-lockfile`, build `pnpm build` (`tsc -b && vite
+  build`), output `dist`, plus an SPA rewrite so client routes reach
+  `index.html`.
+- **Environment** (build time and middleware runtime, plain text):
+
+  | Variable                       | Value                          |
+  | ------------------------------ | ------------------------------ |
+  | `VITE_SUPABASE_URL`            | from `apps/web/.env.local`     |
+  | `VITE_SUPABASE_PUBLISHABLE_KEY`| the publishable key next to it |
+  | `VITE_API_BASE_URL`            | `https://api.teamusic.my.id`   |
+  | `VITE_APP_ENV`                 | `production`                   |
+  | `VITE_APP_DEBUG`               | `false`                        |
+
+  With no Supabase variables the build is not broken — it runs in local
+  mode — it is simply not the live site.
+- **Share previews:** `apps/web/middleware.ts` runs only on `/` and `/to/*`
+  (its `config.matcher`), where it fetches the built document from the
+  static asset, looks the message up at the edge, and rewrites the head
+  before the response leaves. Every other path never invokes it.
+- **Domain:** with the zone on Cloudflare, add two records:
+
+  | Name  | Type  | Target                | Proxy    |
+  | ----- | ----- | --------------------- | -------- |
+  | `@`   | A     | `76.76.21.21`         | DNS only |
+  | `www` | CNAME | `cname.vercel-dns.com`| DNS only |
+
+  Keep both DNS-only (grey cloud) until Vercel reports the certificate as
+  ready in *Settings → Domains*. Afterwards the proxy may stay off — Vercel
+  already serves from its own edge.
 
 ### After the first deploy
 
 ```bash
 # the share card a crawler would read — needs a real message id
-curl -s https://teamusic.my.id/?m=<id> | grep -o 'property="og:title" content="[^"]*"'
+curl -s 'https://teamusic.my.id/?m=<id>' | grep -o 'property="og:title" content="[^"]*"'
 
 # the API across origins
-curl -sI -H 'Origin: https://teamusic.my.id' https://<service>.onrender.com/api/health
+curl -sI -H 'Origin: https://teamusic.my.id' https://api.teamusic.my.id/api/health
 ```
 
 Both should answer from the deployed hosts. A card that still says

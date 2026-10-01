@@ -6,8 +6,9 @@ import {
   onRequest,
   truncate,
   upsizeCover,
+  config as middlewareConfig,
   type Env,
-} from '../apps/web/functions/[[path]].ts';
+} from '../apps/web/middleware.ts';
 
 /**
  * The share preview is the one feature whose failure is silent: a malformed
@@ -139,9 +140,11 @@ check('the static crawl surface is complete', () => {
   assert.deepEqual(locs, ['https://teamusic.my.id/', 'https://teamusic.my.id/browse', 'https://teamusic.my.id/to']);
   assert.ok(!locs.some((loc) => loc.includes('/history')), 'history must not be in the sitemap');
 
-  const routes = JSON.parse(readFileSync('apps/web/public/_routes.json', 'utf8')) as { version: number; include: string[] };
-  assert.equal(routes.version, 1);
-  assert.deepEqual(routes.include, ['/', '/to/*'], 'only the shareable routes may invoke the function');
+  assert.deepEqual(
+    middlewareConfig.matcher,
+    ['/', '/to/:path*'],
+    'only the shareable routes may invoke the middleware',
+  );
 });
 
 /**

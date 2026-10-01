@@ -2,7 +2,7 @@
   "name": "vibe-track-app",
   "version": "0.1.0",
   "private": true,
-  "description": "THE Vibe LAB \u2014 anonymous song messages with a note attached.",
+  "description": "TeaMusic — anonymous song messages with a note attached.",
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:api": "bun run --cwd apps/api dev",

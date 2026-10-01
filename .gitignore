@@ -6,6 +6,13 @@ dist
 *.log
 .DS_Store
 
+# wrangler's local state (dev cache, config dumps)
+.wrangler/
+
+# Per-app lockfiles only — a stray root lockfile would confuse Vercel's
+# monorepo detection (install runs from apps/web, see vercel.json).
+/pnpm-lock.yaml
+
 # Local docs — kept on disk, never committed (BOOK/RULES.md is read by hand)
 BOOK/
 PROGRESS.md
