@@ -78,7 +78,7 @@ export const StoryCard = forwardRef<HTMLDivElement, Props>(function StoryCard(
 
       {/* Top header, padded clear of the profile row overlay. */}
       <div className="z-10 flex w-full items-center justify-between px-20 pt-32">
-        <h1 className="font-serif font-bold tracking-tight italic" style={{ fontSize: 52 }}>VibeCheck.</h1>
+        <h1 className="font-serif font-bold tracking-tight italic" style={{ fontSize: 52 }}>TeaMusic.</h1>
         <div className="flex gap-4">
           {zodiac ? (
             <span className="rounded-full border border-ink/20 bg-white/10 px-6 py-2 font-mono tracking-widest text-ink/70 uppercase backdrop-blur-md" style={{ fontSize: 24 }}>

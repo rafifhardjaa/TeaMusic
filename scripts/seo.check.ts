@@ -101,7 +101,11 @@ check('swaps in the cover art and points the canonical at the link', () => {
   assert.ok(rendered.includes('content="https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/ab/cd/ef/cover.jpg/1000x1000bb.jpg"'));
   assert.ok(rendered.includes('content="1000"'));
   assert.ok(rendered.includes(`href="${message.url}"`));
-  assert.ok(!rendered.includes('VibeCheck — express it with a track'), 'the built-in title survived');
+  // The default title is read out of index.html rather than repeated here, so
+  // rebranding the copy cannot leave this assertion quietly passing on nothing.
+  const builtinTitle = /<title>([^<]+)<\/title>/.exec(html)?.[1] ?? '';
+  assert.ok(builtinTitle.length > 0, 'index.html ships no <title>');
+  assert.ok(!rendered.includes(`<title>${builtinTitle}</title>`), 'the built-in title survived');
 });
 
 check('leaves the tags it does not own alone', () => {

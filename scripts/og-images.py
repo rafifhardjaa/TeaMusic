@@ -71,8 +71,8 @@ def og_default() -> None:
             break
         sub_size -= 2
 
-    draw.text((x, 196), "VibeCheck.", font=brand, fill=INK)
-    draw.text((x, 316), "Express it with a track.", font=tagline, fill=ACCENT)
+    draw.text((x, 196), "TeaMusic.", font=brand, fill=INK)
+    draw.text((x, 316), "Say te amo with a track.", font=tagline, fill=ACCENT)
     draw.text((x, 396), sub_text, font=sub, fill=MUTED)
 
     image.save(OUT / "og-default.png", "PNG", optimize=True)

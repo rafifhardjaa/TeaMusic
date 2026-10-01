@@ -1,4 +1,4 @@
-# VibeCheck
+# TeaMusic
 
 Anonymous song messages with a note attached. Pick a track, write the message, mix a vibe onto it, share the story image. The recipient opens a link, the song plays, and they find out it was for them. Your name never appears.
 
@@ -223,5 +223,5 @@ curl -sI -H 'Origin: https://teamusic.my.id' https://<service>.koyeb.app/api/hea
 ```
 
 Both should answer from the deployed hosts. A card that still says
-`VibeCheck — express it with a track` means the message lookup missed, not
+`TeaMusic — Say Te Amo With a Track` means the message lookup missed, not
 that the tags are missing: the default card is the intended fallback.

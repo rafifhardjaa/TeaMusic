@@ -1,8 +1,23 @@
 # PROGRESS
 
-_Status: read-only audit executed, share previews shipped — dead code removed, CORS wired, SEO live, 2026-10-01_
+_Status: rebranded to TeaMusic, share previews shipped — dead code removed, CORS wired, SEO live, 2026-10-01_
 
-## This pass: share previews and SEO
+## This pass: rebrand to TeaMusic
+
+The name is **TeaMusic** now, and the tagline is "say te amo with a track."
+
+- **The share image was redrawn.** `scripts/og-images.py` renders `TeaMusic.`
+  over the new tagline onto `og-default.png`; the favicon and touch icon keep
+  the equalizer mark, which never carried the old name and needs no redraw.
+- **The copy follows it everywhere a crawler or a tab looks:** `index.html`
+  title, description and image alt, plus every per-route title and description
+  in `src/lib/seo.ts`, so the static head and the SPA head agree.
+- **The exported story card** header reads `TeaMusic.` like the nav.
+- **`check:seo` reads the default title out of `index.html`** rather than
+  repeating it, so the next rename cannot leave that assertion passing on
+  nothing.
+
+## Previous pass: share previews and SEO
 
 Two questions had to be answered before the deploy: what a shared link looks
 like in a chat, and what a crawler indexes when it follows one.
@@ -188,10 +203,10 @@ exports namespace-style, and a wildcard import is the natural mistake.
 
 Palette (`#F4F2EC` / `#22211F` / `#76736A` / `#E3DFD5`, accent unchanged), soft
 elevation shadows, contained inputs with a terracotta focus ring, the
-"Express it with *a track.*" masthead, the form-left / preview-right split, the
+"Express it with *a track.*" masthead (since retitled "Say Te Amo With a track."), the form-left / preview-right split, the
 zodiac pill rail with edge fades, mood icon cards, the spinning-vinyl preview
 card, artwork crossfade, scale pop on select, the toast, and the larger
-"Latest Whispers" marquee cards. Branding unified on VibeCheck.
+"Latest Whispers" marquee cards. Branding unified on TeaMusic.
 
 The prototype's mood set (4 items) and zodiac icons were not copied verbatim:
 the product has 8 moods that are already persisted and constrained in the

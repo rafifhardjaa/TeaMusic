@@ -76,23 +76,23 @@ function decodePath(value: string): string {
 export function routeSeo(pathname: string): PageSeo {
   if (pathname === '/') {
     return {
-      title: 'VibeCheck — express it with a track',
-      description: 'VibeCheck — send an anonymous song message, then mix it by zodiac and mood.',
+      title: 'TeaMusic — Say Te Amo With a Track',
+      description: 'TeaMusic — send an anonymous song message, then mix it by zodiac and mood.',
       path: '/',
       index: true,
     };
   }
   if (pathname === '/browse') {
     return {
-      title: 'Browse the whispers — VibeCheck',
-      description: 'Every whisper sent on VibeCheck, newest first. Mix them by zodiac and mood.',
+      title: 'Browse the whispers — TeaMusic',
+      description: 'Every whisper sent on TeaMusic, newest first. Mix them by zodiac and mood.',
       path: '/browse',
       index: true,
     };
   }
   if (pathname === '/history') {
     return {
-      title: 'Your history — VibeCheck',
+      title: 'Your history — TeaMusic',
       description: 'The tracks you sent from this browser, waiting where you left them.',
       path: '/history',
       // Personal and local: robots.txt already blocks the crawl, and the
@@ -102,7 +102,7 @@ export function routeSeo(pathname: string): PageSeo {
   }
   if (pathname === '/to') {
     return {
-      title: 'Your whispers — VibeCheck',
+      title: 'Your whispers — TeaMusic',
       description: 'Enter the name people whisper to you and they will gather here.',
       path: '/to',
       index: true,
@@ -111,14 +111,14 @@ export function routeSeo(pathname: string): PageSeo {
   if (pathname.startsWith('/to/')) {
     const name = decodePath(pathname.slice('/to/'.length)).trim();
     return {
-      title: `Whispers for ${clamp(name, 40)} — VibeCheck`,
+      title: `Whispers for ${clamp(name, 40)} — TeaMusic`,
       description: `Everything addressed to ${clamp(name, 60)}, newest first. No sender is stored.`,
       path: pathname,
       index: true,
     };
   }
   return {
-    title: 'Nothing here — VibeCheck',
+    title: 'Nothing here — TeaMusic',
     description: 'That page does not exist.',
     path: pathname,
     index: false,
@@ -130,7 +130,7 @@ export function messageSeo(message: { id: string; recipient: string; message: st
   const note = message.message.trim();
   const track = `${message.trackName} — ${message.artistName}`;
   return {
-    title: `A song for ${clamp(message.recipient, 40) || 'you'} — VibeCheck`,
+    title: `A song for ${clamp(message.recipient, 40) || 'you'} — TeaMusic`,
     description: clamp(note || track, 200),
     path: `/?m=${encodeURIComponent(message.id)}`,
     index: true,
