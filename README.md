@@ -24,6 +24,7 @@ apps/api       ElysiaJS API (Bun)
 supabase       schema.sql
 scripts        dev.mjs, runs both servers together
 
+# local only, gitignored — kept on disk, never committed:
 BOOK           PRD, ARCHITECTURE, DATABASE, DESIGN, RULES
 PROGRESS.md    What was built, and the bugs found while verifying it
 TODO.md        Feature checklist
@@ -165,15 +166,18 @@ framework, one runnable proof per piece of non-trivial logic.
 
 ## Deploy
 
-Two services on one domain: `teamusic.my.id` serves the app, the Koyeb service
+Two services on one domain: `teamusic.my.id` serves the app, the Render service
 answers `/api/*`, and Supabase keeps both honest from the browser.
 
-### API — Koyeb (Bun container)
+### API — Render (Docker)
 
-- **Build:** Dockerfile path `apps/api/Dockerfile`, context = **repository
-  root** (`docker build -f apps/api/Dockerfile .`).
-- **Port:** `8787`, from the image's `EXPOSE`. The process also honours `PORT`
-  if the platform supplies one.
+- **Service:** Web Service, runtime **Docker**, Dockerfile path
+  `apps/api/Dockerfile` with the root directory left empty — the build context
+  is the repository root, which is what the `COPY` lines assume
+  (`docker build -f apps/api/Dockerfile .` locally).
+- **Port:** nothing to configure. Render puts the port in `PORT` and the
+  process binds `0.0.0.0:$PORT`; `8787` is only the local fallback, and the
+  `EXPOSE` line in the image is documentation.
 - **Environment:**
 
   | Variable            | Value                  | Why                                  |
@@ -183,11 +187,12 @@ answers `/api/*`, and Supabase keeps both honest from the browser.
   | `ALLOWED_ORIGIN`    | `https://teamusic.my.id` | the only origin the API answers with CORS headers |
 
   Nothing else: iTunes needs no key, messages go browser → Supabase, and the
-  image deliberately contains no `.env` file.
-- **Health check:** `GET /api/health` (`{"ok":true,...}`). Koyeb's default TCP
-  probe on 8787 works as-is.
-- Free instances scale to zero after about an hour of idleness and take 1–5 s
-  to wake, which is a slow first search, not an outage.
+  image deliberately contains no `.env` file. The root `render.yaml` carries
+  the same three, so connecting the repo provisions the service as written.
+- **Health check:** `GET /api/health` (`{"ok":true,...}`), set as the
+  service's Health Check Path.
+- The free instance sleeps after 15 minutes without traffic and needs roughly
+  50 s to wake, which is a slow first search, not an outage.
 
 ### Web — Cloudflare Pages
 
@@ -200,7 +205,7 @@ answers `/api/*`, and Supabase keeps both honest from the browser.
   | ----------------------------- | ------------------------------------------ |
   | `VITE_SUPABASE_URL`           | from `apps/web/.env.local`                 |
   | `VITE_SUPABASE_PUBLISHABLE_KEY` | the publishable key next to it            |
-  | `VITE_API_BASE_URL`           | the Koyeb service URL, e.g. `https://api-…koyeb.app` |
+  | `VITE_API_BASE_URL`           | the Render service URL, e.g. `https://teamic-api.onrender.com` |
   | `VITE_APP_ENV`                | `production`                               |
   | `VITE_APP_DEBUG`              | `false`                                    |
 
@@ -219,7 +224,7 @@ answers `/api/*`, and Supabase keeps both honest from the browser.
 curl -s https://teamusic.my.id/?m=<id> | grep -o 'property="og:title" content="[^"]*"'
 
 # the API across origins
-curl -sI -H 'Origin: https://teamusic.my.id' https://<service>.koyeb.app/api/health
+curl -sI -H 'Origin: https://teamusic.my.id' https://<service>.onrender.com/api/health
 ```
 
 Both should answer from the deployed hosts. A card that still says

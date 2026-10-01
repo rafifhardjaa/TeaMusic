@@ -5,3 +5,9 @@ dist
 .env.*.local
 *.log
 .DS_Store
+
+# Local docs — kept on disk, never committed (BOOK/RULES.md is read by hand)
+BOOK/
+PROGRESS.md
+STATUS.md
+TODO.md

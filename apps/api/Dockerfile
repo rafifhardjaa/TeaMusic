@@ -1,4 +1,4 @@
-# THE Vibe LAB — API image.
+# TeaMusic — API image.
 #
 # The build context is the repository root, not this directory, because the
 # lockfile and the source both live under apps/ and Docker resolves every COPY
@@ -6,9 +6,10 @@
 #
 #   docker build -f apps/api/Dockerfile .
 #
-# Koyeb reads EXPOSE to learn which port to route to. The process binds
-# 0.0.0.0:$PORT (default 8787) inside src/index.ts, and the free instance
-# scales to zero when idle, so there is nothing else to keep warm.
+# Render puts the port in $PORT and routes to whatever the process binds;
+# src/index.ts listens on 0.0.0.0:$PORT and only falls back to 8787 when the
+# variable is absent. The free instance sleeps when idle, so there is nothing
+# to keep warm.
 
 FROM oven/bun:1.4-alpine AS deps
 
