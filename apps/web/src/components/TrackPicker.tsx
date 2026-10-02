@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useImperativeHandle, useState } from 'react';
+import { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import type { Ref } from 'react';
 import { MagnifyingGlass, SpinnerGap, X } from '@phosphor-icons/react';
 import { searchTracks } from '../lib/api';
@@ -31,6 +31,12 @@ export function TrackPicker({ selected, onSelect, ref }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
+  // Whether the search feedback (dropdown, error, no-match line) is showing.
+  // Walking away from a search is a decision: a tap outside closes the card,
+  // while the typed query and the fetched results stay in state so refocusing
+  // the input brings the same card back.
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
   const fetcher = useLatestRequest();
 
   /**
@@ -96,6 +102,18 @@ export function TrackPicker({ selected, onSelect, ref }: Props) {
     return () => clearTimeout(handle);
   }, [query, touched, request]);
 
+  // A tap anywhere outside the picker closes the results card — same
+  // outside-tap pattern as Nav. Taps on the dropdown itself are inside the
+  // root, so picking a row (or its play button) still lands normally.
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [open]);
+
   if (selected) {
     return (
       <div className="flex items-center gap-4 rounded-2xl border border-line bg-white p-3">
@@ -120,7 +138,7 @@ export function TrackPicker({ selected, onSelect, ref }: Props) {
   const isDefault = touched && query.trim() === '';
 
   return (
-    <div className="relative">
+    <div ref={rootRef} className="relative">
       <div className="relative">
         <MagnifyingGlass
           size={16}
@@ -134,11 +152,13 @@ export function TrackPicker({ selected, onSelect, ref }: Props) {
             const value = event.target.value;
             setQuery(value);
             setTouched(true);
+            setOpen(true);
             // Emptying the field brings the default recommendations back, which
             // is the same moment the old effect used to fire on.
             if (value.trim() === '') fetchDefaults();
           }}
           onFocus={() => {
+            setOpen(true);
             if (touched) return;
             setTouched(true);
             fetchDefaults();
@@ -154,12 +174,12 @@ export function TrackPicker({ selected, onSelect, ref }: Props) {
         ) : null}
       </div>
 
-      {error ? <MetaLabel className="mt-3 block text-accent">{error}</MetaLabel> : null}
+      {open && error ? <MetaLabel className="mt-3 block text-accent">{error}</MetaLabel> : null}
 
       {/* Locked below the input: the flip-above behavior made the dropdown
           jump whenever the form above it grew. A fixed 240px cap with
           internal scroll keeps it reachable instead of repositioning it. */}
-      {hasResults && (
+      {open && hasResults && (
         <ul
           className="hide-scrollbar absolute top-full left-0 z-50 mt-2 max-h-60 w-full space-y-1 overflow-y-auto rounded-2xl border border-line bg-paper-alt p-2 pr-1 shadow-lift transition-all duration-200"
           role="listbox"
@@ -175,7 +195,7 @@ export function TrackPicker({ selected, onSelect, ref }: Props) {
         </ul>
       )}
 
-      {touched && !loading && !hasResults && !error ? (
+      {open && touched && !loading && !hasResults && !error ? (
         <MetaLabel className="mt-3 block">No tracks matched that search</MetaLabel>
       ) : null}
 
