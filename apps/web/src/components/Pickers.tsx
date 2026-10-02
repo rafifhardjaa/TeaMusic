@@ -35,31 +35,35 @@ export function ZodiacRail({ onChange }: RailProps) {
   // column and paint over the Preview column.
   return (
     <fieldset className="min-w-0">
-      <legend className="meta-label mb-4 flex items-center gap-2">
+      <legend className="meta-label mb-3 flex items-center gap-2 sm:mb-4">
         <StarFour size={20} weight="light" />
         Their zodiac
       </legend>
 
-        <div className="flex flex-wrap gap-3">
-          {ZODIAC_SIGNS.map((sign) => {
-            const Glyph = icon(ZODIAC_META[sign].icon);
-            const active = zodiac === sign;
-            return (
-              <button
-                key={sign}
-                type="button"
-                aria-pressed={active}
-                onClick={(event) => choose(sign, event.currentTarget)}
-                className={`flex shrink-0 items-center gap-2 rounded-full border px-5 py-2.5 text-sm font-medium transition-colors ${
-                  active ? 'border-ink bg-ink text-white' : 'border-line bg-white text-ink hover:border-ink-soft'
-                }`}
-              >
-                {Glyph ? <Glyph size={18} weight="light" /> : null}
-                {ZODIAC_META[sign].label}
-              </button>
-            );
-          })}
-        </div>
+      {/* Phones get tighter pills (smaller padding, 13px labels) so the twelve
+          signs wrap onto fewer rows and the preview sits higher up the page. */}
+      <div className="flex flex-wrap gap-2 sm:gap-3">
+        {ZODIAC_SIGNS.map((sign) => {
+          const Glyph = icon(ZODIAC_META[sign].icon);
+          const active = zodiac === sign;
+          return (
+            <button
+              key={sign}
+              type="button"
+              aria-pressed={active}
+              onClick={(event) => choose(sign, event.currentTarget)}
+              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-medium transition-colors sm:gap-2 sm:px-5 sm:py-2.5 sm:text-sm ${
+                active ? 'border-ink bg-ink text-white' : 'border-line bg-white text-ink hover:border-ink-soft'
+              }`}
+            >
+              {Glyph ? (
+                <Glyph size={18} weight="light" className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
+              ) : null}
+              {ZODIAC_META[sign].label}
+            </button>
+          );
+        })}
+      </div>
     </fieldset>
   );
 }
@@ -79,12 +83,16 @@ export function MoodGrid({ onChange }: RailProps) {
   // column so long unbroken content (e.g. blurb strings) can never widen it.
   return (
     <fieldset className="min-w-0">
-      <legend className="meta-label mb-4 flex items-center gap-2">
+      <legend className="meta-label mb-3 flex items-center gap-2 sm:mb-4">
         <MaskHappy size={20} weight="light" />
         Current mood
       </legend>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      {/* Compact on phones: smaller cards and a one-line clamped blurb cut the
+          grid from ~4 tall rows to 4 short ones, which is most of the distance
+          between the form and the live preview. The blurb returns in full from
+          sm up where there is room for it. */}
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-4">
         {MOODS.map((option) => {
           const Glyph = icon(MOOD_META[option].icon);
           const active = mood === option;
@@ -94,17 +102,25 @@ export function MoodGrid({ onChange }: RailProps) {
               type="button"
               aria-pressed={active}
               onClick={(event) => choose(option, event.currentTarget)}
-              className={`flex flex-col items-start rounded-2xl border p-4 text-left transition-all ${
+              className={`flex flex-col items-start rounded-2xl border p-3 text-left transition-all sm:p-4 ${
                 active ? 'border-ink bg-ink' : 'border-line bg-white hover:border-ink-soft'
               }`}
             >
               {Glyph ? (
-                <Glyph size={26} weight="light" className={`mb-2 ${active ? 'text-white' : 'text-ink'}`} />
+                <Glyph
+                  size={26}
+                  weight="light"
+                  className={`mb-1.5 h-5 w-5 sm:mb-2 sm:h-[26px] sm:w-[26px] ${active ? 'text-white' : 'text-ink'}`}
+                />
               ) : null}
-              <span className={`text-sm font-semibold ${active ? 'text-white' : 'text-ink'}`}>
+              <span className={`text-[13px] font-semibold sm:text-sm ${active ? 'text-white' : 'text-ink'}`}>
                 {MOOD_META[option].label}
               </span>
-              <span className={`mt-0.5 text-xs ${active ? 'text-white/70' : 'text-ink-soft'}`}>
+              <span
+                className={`mt-0.5 line-clamp-1 text-[11px] sm:line-clamp-none sm:text-xs ${
+                  active ? 'text-white/70' : 'text-ink-soft'
+                }`}
+              >
                 {MOOD_META[option].blurb}
               </span>
             </button>

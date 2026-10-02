@@ -76,19 +76,48 @@ export function Nav() {
 
         <button
           type="button"
-          className="-mr-2 p-2 text-ink md:hidden"
+          className="-mr-2 rounded-full p-2 text-ink transition-colors hover:bg-line/40 md:hidden"
           aria-expanded={open}
           aria-controls="nav-menu"
           aria-label={open ? 'Close menu' : 'Open menu'}
           onClick={() => setOpen((value) => !value)}
         >
-          {open ? <X size={24} /> : <List size={24} />}
+          {/*
+            Both glyphs share one box so the swap cross-fades with a quarter
+            turn instead of popping between two frames.
+          */}
+          <span className="relative block h-6 w-6">
+            <List
+              size={24}
+              className={`absolute inset-0 transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none ${
+                open ? 'rotate-90 opacity-0' : 'rotate-0 opacity-100'
+              }`}
+            />
+            <X
+              size={24}
+              className={`absolute inset-0 transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none ${
+                open ? 'rotate-0 opacity-100' : '-rotate-90 opacity-0'
+              }`}
+            />
+          </span>
         </button>
       </div>
 
-      {open && (
-        <div id="nav-menu" className="border-t border-line/50 md:hidden">
-          <div className="mx-auto flex w-full max-w-6xl flex-col px-5">
+      {/*
+        The panel stays mounted so its height can animate: the grid-rows
+        0fr/1fr trick slides it open in place, while `visibility` — which the
+        transition holds until the collapse finishes — keeps the closed links
+        out of the tab order. Unmounting on close (the old {open && ...})
+        gave the menu a hard pop with no transition to hang the easing on.
+      */}
+      <div
+        id="nav-menu"
+        className={`grid transition-[grid-template-rows,visibility] duration-300 ease-out motion-reduce:transition-none md:hidden ${
+          open ? 'visible grid-rows-[1fr]' : 'invisible grid-rows-[0fr]'
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="mx-auto flex w-full max-w-6xl flex-col border-t border-line/50 px-5">
             {LINKS.map((link) => (
               <NavLink
                 key={link.to}
@@ -106,7 +135,7 @@ export function Nav() {
             ))}
           </div>
         </div>
-      )}
+      </div>
     </nav>
   );
 }

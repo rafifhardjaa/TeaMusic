@@ -53,8 +53,10 @@ export function Marquee({ onOpen }: Props) {
 
   if (items.length === 0) return null;
 
-  // Card is `w-[340px]` with a `gap-6` (24px) between cards.
-  const cardPitch = 340 + 24;
+  // Card is `w-[280px]` below sm and `w-[340px]` from sm up, with a `gap-6`
+  // (24px) between cards. The pitch follows the same breakpoint, so the
+  // repeat count always covers the viewport at the width actually shown.
+  const cardPitch = (viewportWidth >= 640 ? 340 : 280) + 24;
   // Repeat the list enough times that ONE copy is at least as wide as the
   // viewport. Both copies below are built from this same repeated list, so the
   // loop seam is invisible at any viewport width.
@@ -69,15 +71,15 @@ export function Marquee({ onOpen }: Props) {
 
   return (
     <section className="relative border-t border-line bg-paper">
-      <div className="mx-auto max-w-7xl px-5 pt-16 pb-10 text-center">
-        <h2 className="font-serif text-3xl font-bold tracking-tight text-ink">Latest Whispers</h2>
-        <p className="mt-2 text-base text-ink-soft">See what others are sending out.</p>
+      <div className="mx-auto max-w-7xl px-5 pt-10 pb-6 text-center sm:pt-16 sm:pb-10">
+        <h2 className="font-serif text-2xl font-bold tracking-tight text-ink sm:text-3xl">Latest Whispers</h2>
+        <p className="mt-2 text-sm text-ink-soft sm:text-base">See what others are sending out.</p>
       </div>
 
       {/* pt-4 headroom: cards lift 4px on hover (hover:-translate-y-1) and with
           zero top clearance the overflow-hidden viewport would slice their top
           edge off. */}
-      <div className="marquee-viewport relative flex w-full overflow-hidden pt-4 pb-16">
+      <div className="marquee-viewport relative flex w-full overflow-hidden pt-4 pb-10 sm:pb-16">
         <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-24 bg-gradient-to-r from-paper to-transparent md:w-40" />
         <div className="pointer-events-none absolute inset-y-0 right-0 z-20 w-24 bg-gradient-to-l from-paper to-transparent md:w-40" />
 
@@ -118,16 +120,16 @@ function WhisperCard({ message, onOpen }: { message: Message; onOpen: (message: 
     <button
       type="button"
       onClick={() => onOpen(message)}
-      className="group flex w-[340px] shrink-0 flex-col gap-5 rounded-[1.5rem] border border-line bg-white p-6 text-left shadow-soft transition-all duration-300 hover:-translate-y-1 hover:border-accent"
+      className="group flex w-[280px] shrink-0 flex-col gap-4 rounded-[1.5rem] border border-line bg-white p-5 text-left shadow-soft transition-all duration-300 hover:-translate-y-1 hover:border-accent sm:w-[340px] sm:gap-5 sm:p-6"
     >
       <MetaLabel>To: {message.recipient}</MetaLabel>
 
-      <p className="font-handwriting text-2xl leading-relaxed text-ink">"{message.message}"</p>
+      <p className="font-handwriting text-xl leading-relaxed text-ink sm:text-2xl">"{message.message}"</p>
 
       <div className="mt-auto h-px w-full bg-line/60" />
 
       <div className="-mx-2 flex items-center gap-4 rounded-xl p-2 transition-colors group-hover:bg-paper/70">
-        <CoverArt src={message.coverUrl} alt="" className="h-12 w-12 rounded-lg" />
+        <CoverArt src={message.coverUrl} alt="" className="h-10 w-10 rounded-lg sm:h-12 sm:w-12" />
         <div className="flex min-w-0 flex-col">
           <span className="truncate text-sm font-semibold text-ink">{message.trackName}</span>
           <span className="mt-0.5 truncate text-xs text-ink-soft">{message.artistName}</span>

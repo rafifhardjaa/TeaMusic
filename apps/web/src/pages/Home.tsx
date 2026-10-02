@@ -154,42 +154,55 @@ export function Home() {
         <HowItWorks />
       </div>
 
-      <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-12 px-5 py-14 lg:grid-cols-12 lg:gap-16">
-        {/* LEFT: message, zodiac, mood */}
-        <div className="col-span-1 flex flex-col gap-12 lg:col-span-7">
-          <section ref={formRef} className="flex scroll-mt-24 flex-col gap-6">
-            <div className="flex items-center gap-2 border-b border-line pb-3">
-              <EnvelopeSimple size={20} weight="light" className="text-ink-soft" />
-              <h2 className="font-serif text-xl font-semibold text-ink">
-                {sent ? 'On its way' : 'The message'}
-              </h2>
-            </div>
-            {sent ? (
-              <SentCard message={sent} onAnother={handleSendAnother} />
-            ) : (
-              <SendForm onSent={handleSent} />
-            )}
-          </section>
+      {/*
+        One column on mobile in the order a phone should read it — message,
+        live preview, pickers, vibe — so the preview no longer waits behind
+        twelve pills and eight mood cards. From lg the explicit placement
+        restores the original two-column layout: message and pickers down the
+        left seven columns, the preview sticky down the right five, spanning
+        all four rows so sticky can travel as far as the left content does.
+      */}
+      <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-8 px-5 py-10 sm:gap-12 lg:grid-cols-12 lg:gap-16 lg:py-14">
+        <section ref={formRef} className="flex scroll-mt-24 flex-col gap-6 lg:col-span-7 lg:col-start-1 lg:row-start-1">
+          <div className="flex items-center gap-2 border-b border-line pb-3">
+            <EnvelopeSimple size={20} weight="light" className="text-ink-soft" />
+            <h2 className="font-serif text-xl font-semibold text-ink">
+              {sent ? 'On its way' : 'The message'}
+            </h2>
+          </div>
+          {sent ? (
+            <SentCard message={sent} onAnother={handleSendAnother} />
+          ) : (
+            <SendForm onSent={handleSent} />
+          )}
+        </section>
 
-          <ZodiacRail />
-          <MoodGrid />
-
-          {/*
-            Vibe of the day lives in the left column on purpose. It was first
-            placed under the sticky preview, but sticky pins the preview at
-            top-28 while this card scrolls up underneath it, so the two
-            overlapped through most of the page. Separate grid columns can
-            never overlap, and the right column goes back to holding only the
-            sticky preview, as it did before.
-          */}
-          <VibeOfTheDay onUse={() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
-        </div>
-
-        {/* RIGHT: live preview, sticky on desktop */}
-        <div className="col-span-1 lg:col-span-5">
+        {/* Live preview: directly under the form on mobile, the sticky
+            right-hand sidebar from lg up. */}
+        <div className="lg:col-span-5 lg:col-start-8 lg:row-span-4 lg:row-start-1">
           <div className="z-10 flex flex-col gap-4 lg:sticky lg:top-28">
             <PreviewCard />
           </div>
+        </div>
+
+        <div className="lg:col-span-7 lg:col-start-1 lg:row-start-2">
+          <ZodiacRail />
+        </div>
+
+        <div className="lg:col-span-7 lg:col-start-1 lg:row-start-3">
+          <MoodGrid />
+        </div>
+
+        {/*
+          Vibe of the day lives in the left column on purpose. It was first
+          placed under the sticky preview, but sticky pins the preview at
+          top-28 while this card scrolls up underneath it, so the two
+          overlapped through most of the page. Separate grid columns can
+          never overlap, and the right column goes back to holding only the
+          sticky preview, as it did before.
+        */}
+        <div className="lg:col-span-7 lg:col-start-1 lg:row-start-4">
+          <VibeOfTheDay onUse={() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
         </div>
       </div>
 
@@ -252,7 +265,7 @@ function WhisperSkeleton() {
             <div
               key={slot}
               aria-hidden
-              className="flex w-[340px] shrink-0 flex-col gap-5 rounded-[1.5rem] border border-line bg-white p-6"
+              className="flex w-[280px] shrink-0 flex-col gap-5 rounded-[1.5rem] border border-line bg-white p-6 sm:w-[340px]"
             >
               <div className="h-3 w-24 rounded-full bg-line/40" />
               <div className="flex flex-col gap-2">

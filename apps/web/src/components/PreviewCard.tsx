@@ -110,20 +110,22 @@ export function PreviewCard() {
 
   return (
     <div ref={scope}>
-      <div className="mb-4 flex items-center justify-between px-1">
+      <div className="mb-3 flex items-center justify-between px-1 sm:mb-4">
         <h3 className="font-serif text-lg font-semibold text-ink">Preview</h3>
         <span className="rounded-md bg-line/50 px-2 py-1 text-xs font-medium tracking-wider text-ink-soft uppercase">
           Updates live
         </span>
       </div>
 
-      <div className="relative flex min-h-[430px] flex-col overflow-hidden rounded-[1.5rem] border border-line/60 bg-white p-8 shadow-soft">
+      {/* Phones lose ~90px of height and 12px of padding: the card still reads
+          as the centerpiece, but it no longer pushes the pickers off-screen. */}
+      <div className="relative flex min-h-[340px] flex-col overflow-hidden rounded-[1.5rem] border border-line/60 bg-white p-5 shadow-soft sm:min-h-[430px] sm:p-8">
         <div className="relative z-10 flex items-center justify-between">
           <MetaLabel>
             To: <span className="text-ink">{recipient.trim() || 'Someone'}</span>
           </MetaLabel>
 
-          <div className="relative h-10 w-10 shrink-0 opacity-80">
+          <div className="relative h-9 w-9 shrink-0 opacity-80 sm:h-10 sm:w-10">
             {/*
               Grooves alone are rotationally symmetric and therefore invisible
               in motion, so the read comes from the off-centre sheen and the
@@ -150,8 +152,8 @@ export function PreviewCard() {
           </div>
         </div>
 
-        <div className="z-10 flex flex-1 items-center justify-center py-10">
-          <p className="px-2 text-center font-handwriting text-3xl leading-relaxed text-ink md:text-4xl">
+        <div className="z-10 flex flex-1 items-center justify-center py-6 sm:py-10">
+          <p className="px-2 text-center font-handwriting text-2xl leading-relaxed text-ink sm:text-3xl md:text-4xl">
             {message.trim() || 'Write a message to see it here...'}
           </p>
         </div>
@@ -160,7 +162,7 @@ export function PreviewCard() {
         <div className="group relative z-10 mt-auto flex items-center gap-4 rounded-2xl border border-line/60 bg-paper/50 p-3 transition-colors hover:bg-paper">
           <div
             ref={coverRef}
-            className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-line/50 shadow-sm"
+            className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-line/50 shadow-sm sm:h-14 sm:w-14"
           >
             {track ? (
               <>
@@ -216,7 +218,7 @@ export function PreviewCard() {
         type="button"
         onClick={() => void handleMix()}
         disabled={busy}
-        className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-ink px-4 py-3.5 font-medium text-white transition-all hover:bg-accent active:scale-[0.98] disabled:opacity-50"
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-ink px-4 py-3 font-medium text-white transition-all hover:bg-accent active:scale-[0.98] disabled:opacity-50 sm:mt-6 sm:py-3.5"
       >
         <MagicWand size={18} weight="bold" />
         {busy ? 'Mixing' : 'Mix track'}
