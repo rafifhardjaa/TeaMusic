@@ -37,6 +37,13 @@ async function request<T>(path: string, init?: RequestInit & { signal?: AbortSig
   if (!response.ok) {
     throw new ApiError(payload?.error ?? `Request failed with status ${response.status}`, response.status);
   }
+  // A 2xx that is not JSON never comes from this API — the usual cause is a
+  // wrong `VITE_API_BASE_URL` landing on the SPA rewrite, which answers any
+  // path with `index.html`. Reading that as success would let the health
+  // probe vouch for a backend that is not there.
+  if (payload === null) {
+    throw new ApiError('API answered with a non-JSON body. Check VITE_API_BASE_URL.', response.status);
+  }
   return payload as T;
 }
 

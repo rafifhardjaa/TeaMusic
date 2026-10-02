@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { getTrack } from '../src/lib/api';
+import { getHealth, getTrack } from '../src/lib/api';
 import type { Track } from '../src/lib/types';
 
 /**
@@ -52,7 +52,12 @@ globalThis.fetch = (async (input: string) => {
   return {
     ok: reply.ok,
     status: reply.status,
-    json: async () => reply.body,
+    json: async () => {
+      // Real response.json() rejects on a non-JSON body (e.g. index.html),
+      // which is how the SPA-rewrite case arrives.
+      if (reply.body === undefined) throw new SyntaxError('Unexpected token <');
+      return reply.body;
+    },
   } as Response;
 }) as typeof fetch;
 
@@ -92,7 +97,14 @@ assert.equal((await getTrack('throttled'))?.name, TRACK.name, 'a rate limit must
 assert.equal(calls.length, 2);
 console.log('ok  rate-limit refusal is not cached, retry succeeds');
 
-// 4. An abort propagates and is NOT cached as null.
+// 4. A 2xx that is not JSON must not read as a healthy backend: a wrong
+//    API_BASE_URL hits the SPA rewrite, which answers with index.html.
+calls = [];
+reply = { ok: true, status: 200, body: undefined };
+await assert.rejects(() => getHealth(), /non-JSON/);
+console.log('ok  non-JSON 2xx is rejected, not a fake success');
+
+// 5. An abort propagates and is NOT cached as null.
 globalThis.fetch = (async () => {
   throw new DOMException('Aborted', 'AbortError');
 }) as typeof fetch;
