@@ -22,8 +22,20 @@ const APP_ENV = import.meta.env.VITE_APP_ENV?.trim() || 'production';
 export const APP_DEBUG = APP_ENV !== 'production' && import.meta.env.VITE_APP_DEBUG === 'true';
 export const IS_PRODUCTION = APP_ENV === 'production';
 
-/** Client-safe Supabase settings — publishable key, never a service-role key. */
-export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL?.trim() ?? '';
+/**
+ * Client-safe Supabase settings — publishable key, never a service-role key.
+ *
+ * The URL is normalized because the Supabase dashboard labels two different
+ * things — the bare project URL and the REST URL (`…/rest/v1`) — and pasting
+ * the second is the classic mistake: `supabase-js` appends `/rest/v1` itself,
+ * so the query ends up at `/rest/v1/rest/v1/…` and 404s while the app reports
+ * "Supabase unreachable". Stripping the suffix (and any trailing slash) means
+ * either paste works.
+ */
+export const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL ?? '')
+  .trim()
+  .replace(/\/rest\/v1\/?$/, '')
+  .replace(/\/+$/, '');
 export const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ?? '';
 
 /**
