@@ -77,16 +77,18 @@ assert.equal(calls.length, 1, 'an empty lookup should be cached as null, not ret
 console.log('ok  empty result set is cached as null, not retried');
 
 // 3. A transport failure is NOT cached: the next call must try again. The
-//    failure itself is also retried once in place (1.2s backoff) before it
-//    surfaces, so one dropped connection does not end the search.
+//    failure itself is also retried once in place (1.2s backoff); if both
+//    attempts fail, a no-cors probe asks whether the host is reachable at
+//    all and picks the message — this mock throws for every call, so the
+//    probe reports the host as unreachable.
 calls = [];
 reply = { ok: true, status: 0, body: null };
-await assert.rejects(() => getTrack('flaky'), /Could not reach Apple/);
-assert.equal(calls.length, 2, 'a transport failure should be retried once before it throws');
+await assert.rejects(() => getTrack('flaky'), /cannot reach itunes\.apple\.com/);
+assert.equal(calls.length, 3, 'two attempts plus one reachability probe');
 reply = { ok: true, status: 200, body: { resultCount: 1, results: [ITEM] } };
 assert.equal((await getTrack('flaky'))?.name, TRACK.name, 'a failed lookup must not poison the cache');
-assert.equal(calls.length, 3);
-console.log('ok  transport failure retried once, not cached, later call succeeds');
+assert.equal(calls.length, 4);
+console.log('ok  transport failure retried once, probed, not cached, later call succeeds');
 
 // 3b. A rate-limit refusal is NOT cached either —429 is about the moment, not
 //     about the track, and caching it would hide the track for the session.

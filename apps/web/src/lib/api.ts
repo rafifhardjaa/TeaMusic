@@ -94,6 +94,39 @@ function wait(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
+/**
+ * Turns a bare transport failure into the truth, by asking a separate
+ * question: can this device reach the host at all?
+ *
+ * A `no-cors` probe needs no headers to succeed — an opaque response resolves
+ * whatever status comes back, so "the network is alive" survives even an
+ * answer Apple refuses to serve with CORS (error responses carry no
+ * `access-control-allow-origin`, which WebKit reports as the same TypeError
+ * as a dead connection; that is how an iPhone on a shared or filtered network
+ * ends up blaming its own connection). If the probe also throws, nothing on
+ * this device can reach the host — a blocked DNS, a content filter, or a
+ * network that simply does not route it, not a flaky request.
+ */
+async function explainTransport(url: URL, signal?: AbortSignal): Promise<ApiError> {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return new ApiError('You are offline. Reconnect, then search again.', 0);
+  }
+
+  try {
+    await fetch(url, { mode: 'no-cors', cache: 'no-store', signal });
+    return new ApiError(
+      'Apple refused this request — your network is likely rate-limited. Wait a minute or switch networks.',
+      0,
+    );
+  } catch (error) {
+    if (isAbortError(error)) throw error;
+    return new ApiError(
+      'This device cannot reach itunes.apple.com. Try another network, or check for a VPN or content filter.',
+      0,
+    );
+  }
+}
+
 interface ITunesItem {
   trackId: number;
   trackName: string;
@@ -131,30 +164,28 @@ function clampLimit(value: number, max: number): number {
 }
 
 async function itunes<T>(url: URL, signal?: AbortSignal): Promise<T> {
-  // Set only by a failure worth repeating (transport error or 429), so the
-  // loop condition and the final throw read from the same value.
-  let transient: ApiError | null = null;
+  // A refusal from Apple itself (429) keeps its own message; a transport
+  // failure only records that the network, not Apple, said no.
+  let refusal: ApiError | null = null;
+  let transportFailed = false;
 
-  // Two attempts at most. The second follows only a transient failure; any
-  // other refusal is answered once and taken at face value.
+  // Two attempts at most. The second follows only a failure; any other
+  // refusal is answered once and taken at face value.
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    if (transient) await wait(ITUNES_RETRY_DELAY_MS, signal);
+    if (attempt > 0) await wait(ITUNES_RETRY_DELAY_MS, signal);
 
     let response: Response;
     try {
       response = await fetch(url, { signal, headers: { Accept: 'application/json' } });
     } catch (error) {
       if (isAbortError(error)) throw error;
-      // A WebKit TypeError also hides a 429 that arrived without CORS headers:
+      // A WebKit TypeError also hides a 429 that arrived without CORS headers —
       // the browser refuses the response before the page can read it, which is
-      // why an iPhone on a shared carrier IP used to report a dead connection
-      // while the same page on Android was fine. Unreachable or throttled is
-      // indistinguishable here, so the message names both and the retry is the
-      // only cure available.
-      transient = new ApiError(
-        'Could not reach Apple. Check your connection, or try again in a minute.',
-        0,
-      );
+      // how an iPhone on a shared or filtered network used to report a dead
+      // connection while the same page on Android was fine. Whether this is
+      // throttling or a blocked host cannot be told from here; the retry above
+      // runs first, and explainTransport() decides the message if both fail.
+      transportFailed = true;
       continue;
     }
 
@@ -164,7 +195,7 @@ async function itunes<T>(url: URL, signal?: AbortSignal): Promise<T> {
       // Shared address over the ~20/min budget. Apple's own errorMessage just
       // says "rate limited"; naming the cause saves the visitor from checking
       // a connection that is working fine.
-      transient = new ApiError('Apple is rate-limiting this network. Try again in a minute.', 429);
+      refusal = new ApiError('Apple is rate-limiting this network. Try again in a minute.', 429);
       continue;
     }
     if (!response.ok) {
@@ -175,8 +206,12 @@ async function itunes<T>(url: URL, signal?: AbortSignal): Promise<T> {
     return payload as T;
   }
 
-  // Reached only when both attempts set `transient` above.
-  throw transient;
+  // The loop exits only through `continue`, so at least one failure is
+  // recorded. A 429 from the second attempt outranks a transport guess: it is
+  // Apple speaking, not the network.
+  if (refusal) throw refusal;
+  if (transportFailed) throw await explainTransport(url, signal);
+  throw new ApiError('iTunes request failed.', 0); // unreachable
 }
 
 /**
