@@ -40,9 +40,12 @@ export function ZodiacRail({ onChange }: RailProps) {
         Their zodiac
       </legend>
 
-      {/* Phones get tighter pills (smaller padding, 13px labels) so the twelve
-          signs wrap onto fewer rows and the preview sits higher up the page. */}
-      <div className="flex flex-wrap gap-2 sm:gap-3">
+      {/*
+        Phones get a two-column grid — six signs per column, every cell full
+        width so long labels like "Sagittarius" sit centered without
+        crowding. From sm up the pills return to their free-flowing row.
+      */}
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3">
         {ZODIAC_SIGNS.map((sign) => {
           const Glyph = icon(ZODIAC_META[sign].icon);
           const active = zodiac === sign;
@@ -52,7 +55,7 @@ export function ZodiacRail({ onChange }: RailProps) {
               type="button"
               aria-pressed={active}
               onClick={(event) => choose(sign, event.currentTarget)}
-              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-medium transition-colors sm:gap-2 sm:px-5 sm:py-2.5 sm:text-sm ${
+              className={`flex shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 py-2 text-[13px] font-medium transition-colors sm:justify-start sm:gap-2 sm:px-5 sm:py-2.5 sm:text-sm ${
                 active ? 'border-ink bg-ink text-white' : 'border-line bg-white text-ink hover:border-ink-soft'
               }`}
             >

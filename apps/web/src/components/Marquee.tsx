@@ -10,10 +10,11 @@ interface Props {
 }
 
 /**
- * Marquee scroll speed, in px/second. Slower reads calmer; faster feels busy.
+ * Marquee scroll speed, in px/second. 90 read calm but sluggish on a phone;
+ * 120 keeps the feed moving without hurrying the quote past the reader.
  * A card stays on screen long enough to read the quote at this speed.
  */
-const PX_PER_SECOND = 90;
+const PX_PER_SECOND = 120;
 
 /**
  * The "Latest Whispers" feed. RULES.md allows a plain CSS loop for infinite
