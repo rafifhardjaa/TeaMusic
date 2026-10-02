@@ -210,7 +210,7 @@ async function integration(): Promise<void> {
         VITE_SUPABASE_URL: 'VITE_SUPABASE_URL=https://project.supabase.co/rest/v1/',
         VITE_SUPABASE_PUBLISHABLE_KEY: 'VITE_SUPABASE_PUBLISHABLE_KEY=anon-key',
       };
-      const response = await onRequest({ request: new Request(`https://teamusic.my.id/?m=${row.id}`), messy });
+      const response = await onRequest({ request: new Request(`https://teamusic.my.id/?m=${row.id}`), env: messy });
       const body = await response.text();
       assert.ok(queried.startsWith('https://project.supabase.co/rest/v1/messages'), `queried ${queried}`);
       assert.ok(body.includes('<title>A song for Galih</title>'));
