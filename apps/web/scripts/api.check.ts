@@ -76,26 +76,30 @@ assert.equal(await getTrack('gone'), null);
 assert.equal(calls.length, 1, 'an empty lookup should be cached as null, not retried');
 console.log('ok  empty result set is cached as null, not retried');
 
-// 3. A transport failure is NOT cached: the next call must try again.
+// 3. A transport failure is NOT cached: the next call must try again. The
+//    failure itself is also retried once in place (1.2s backoff) before it
+//    surfaces, so one dropped connection does not end the search.
 calls = [];
 reply = { ok: true, status: 0, body: null };
-await assert.rejects(() => getTrack('flaky'), /Cannot reach iTunes/);
-assert.equal(calls.length, 1);
+await assert.rejects(() => getTrack('flaky'), /Could not reach Apple/);
+assert.equal(calls.length, 2, 'a transport failure should be retried once before it throws');
 reply = { ok: true, status: 200, body: { resultCount: 1, results: [ITEM] } };
 assert.equal((await getTrack('flaky'))?.name, TRACK.name, 'a failed lookup must not poison the cache');
-assert.equal(calls.length, 2);
-console.log('ok  transport failure is not cached, retry succeeds');
+assert.equal(calls.length, 3);
+console.log('ok  transport failure retried once, not cached, later call succeeds');
 
 // 3b. A rate-limit refusal is NOT cached either —429 is about the moment, not
 //     about the track, and caching it would hide the track for the session.
+//     It gets the same single retry, and its own honest message: Apple's raw
+//     errorMessage ("rate limited") reads like the page is broken.
 calls = [];
 reply = { ok: false, status: 429, body: { errorMessage: 'rate limited' } };
-await assert.rejects(() => getTrack('throttled'), /rate limited/);
-assert.equal(calls.length, 1);
+await assert.rejects(() => getTrack('throttled'), /rate-limiting this network/);
+assert.equal(calls.length, 2, 'a 429 should be retried once before it throws');
 reply = { ok: true, status: 200, body: { resultCount: 1, results: [ITEM] } };
 assert.equal((await getTrack('throttled'))?.name, TRACK.name, 'a rate limit must not poison the cache');
-assert.equal(calls.length, 2);
-console.log('ok  rate-limit refusal is not cached, retry succeeds');
+assert.equal(calls.length, 3);
+console.log('ok  rate-limit refusal retried once, not cached, later call succeeds');
 
 // 4. A 2xx that is not JSON must not read as a healthy backend: a wrong
 //    API_BASE_URL hits the SPA rewrite, which answers with index.html.

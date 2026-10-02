@@ -63,6 +63,37 @@ const ITUNES_SEARCH = 'https://itunes.apple.com/search';
 const ITUNES_LOOKUP = 'https://itunes.apple.com/lookup';
 const STOREFRONT = 'US';
 
+/**
+ * One automatic retry, this far apart. Both failures this guards against are
+ * transient: a carrier NAT address or iCloud Private Relay shares one public
+ * IP with enough strangers to trip Apple's ~20/min budget at any moment, and
+ * a single dropped connection should not end the search. A silent second
+ * attempt beats an error toast the visitor can do nothing about.
+ */
+const ITUNES_RETRY_DELAY_MS = 1200;
+
+/**
+ * Backoff that stays honest about aborts: cancelling during the wait surfaces
+ * as an AbortError instead of resolving as a retry that already happened.
+ */
+function wait(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'));
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    function onAbort() {
+      clearTimeout(timer);
+      reject(new DOMException('Aborted', 'AbortError'));
+    }
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
 interface ITunesItem {
   trackId: number;
   trackName: string;
@@ -100,21 +131,52 @@ function clampLimit(value: number, max: number): number {
 }
 
 async function itunes<T>(url: URL, signal?: AbortSignal): Promise<T> {
-  let response: Response;
-  try {
-    response = await fetch(url, { signal, headers: { Accept: 'application/json' } });
-  } catch (error) {
-    if (isAbortError(error)) throw error;
-    throw new ApiError('Cannot reach iTunes. Check your connection.', 0);
+  // Set only by a failure worth repeating (transport error or 429), so the
+  // loop condition and the final throw read from the same value.
+  let transient: ApiError | null = null;
+
+  // Two attempts at most. The second follows only a transient failure; any
+  // other refusal is answered once and taken at face value.
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    if (transient) await wait(ITUNES_RETRY_DELAY_MS, signal);
+
+    let response: Response;
+    try {
+      response = await fetch(url, { signal, headers: { Accept: 'application/json' } });
+    } catch (error) {
+      if (isAbortError(error)) throw error;
+      // A WebKit TypeError also hides a 429 that arrived without CORS headers:
+      // the browser refuses the response before the page can read it, which is
+      // why an iPhone on a shared carrier IP used to report a dead connection
+      // while the same page on Android was fine. Unreachable or throttled is
+      // indistinguishable here, so the message names both and the retry is the
+      // only cure available.
+      transient = new ApiError(
+        'Could not reach Apple. Check your connection, or try again in a minute.',
+        0,
+      );
+      continue;
+    }
+
+    const payload = (await response.json().catch(() => null)) as (T & { errorMessage?: string }) | null;
+
+    if (response.status === 429) {
+      // Shared address over the ~20/min budget. Apple's own errorMessage just
+      // says "rate limited"; naming the cause saves the visitor from checking
+      // a connection that is working fine.
+      transient = new ApiError('Apple is rate-limiting this network. Try again in a minute.', 429);
+      continue;
+    }
+    if (!response.ok) {
+      // Anything else is a fact about this request, not the moment — thrown,
+      // never cached, so the next attempt asks again.
+      throw new ApiError(payload?.errorMessage ?? `iTunes request failed with status ${response.status}`, response.status);
+    }
+    return payload as T;
   }
 
-  const payload = (await response.json().catch(() => null)) as (T & { errorMessage?: string }) | null;
-  if (!response.ok) {
-    // A rate-limit or transient refusal is not a fact about the track, so it
-    // is thrown — never cached — and the next attempt asks again.
-    throw new ApiError(payload?.errorMessage ?? `iTunes request failed with status ${response.status}`, response.status);
-  }
-  return payload as T;
+  // Reached only when both attempts set `transient` above.
+  throw transient;
 }
 
 /**
@@ -149,8 +211,8 @@ export async function searchTracks(query: string, limit = 12, signal?: AbortSign
  *
  * An id iTunes does not know answers with an empty result set — as final as a
  * hit, and cached as null for the same reason. Aborts, transport failures and
- * rate-limit refusals are not cached, since all three are expected to succeed
- * on a retry.
+ * rate-limit refusals are never cached; the last two are retried once inside
+ * `itunes()` first, since both are expected to succeed moments later.
  *
  * ponytail: unbounded for the life of the tab. Fine at session scale; a visitor
  * opening thousands of distinct tracks should cap it (LRU by insertion order).
