@@ -38,10 +38,12 @@ Adopted from the `vibe.html` prototype in this repo: warm alabaster palette
 shadows instead of heavy borders, a horizontal zodiac pill rail, mood icon
 cards, a live preview panel with a spinning record, and a toast.
 
-Cover art loads straight from Apple's CDN. The `/api/image` proxy is used only
-by the story-image export, because `html-to-image` reads pixels through a canvas
-and the same-origin policy blocks that for a cross-origin image. Keeping display
-off the proxy means cover art still renders when the API is down.
+Cover art loads straight from Apple's CDN. The `/api/image` proxy — resolved
+against `VITE_API_BASE_URL`, never as a route on the frontend host itself — is
+used by the story-image export and the card's tint sampler, because both read
+pixels through a canvas and the same-origin policy blocks that for a
+cross-origin image. Keeping display `<img>` off the proxy means cover art still
+renders when the API is down.
 
 ## Run it
 

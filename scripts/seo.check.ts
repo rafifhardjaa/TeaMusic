@@ -147,6 +147,22 @@ check('the static crawl surface is complete', () => {
   );
 });
 
+check('the image proxy is resolved against the API, never the frontend host', () => {
+  // A bare "/api/image?url=…" is a route on whichever host serves the page:
+  // the Vite proxy covers that in dev, but on the Vercel deploy it falls into
+  // the SPA rewrite, answers HTML instead of JPEG, and html-to-image's error
+  // handler swaps the artwork for a transparent placeholder — a download with
+  // no cover and no error anywhere.
+  const sources = [
+    ['CoverArt', readFileSync('apps/web/src/components/ui/CoverArt.tsx', 'utf8')],
+    ['coverColor', readFileSync('apps/web/src/lib/coverColor.ts', 'utf8')],
+  ] as const;
+  for (const [name, source] of sources) {
+    assert.ok(source.includes(`apiUrl('/api/image')`), `${name} must prefix the proxy path with apiUrl`);
+    assert.ok(!source.includes('/api/image?'), `${name} fetches a bare relative proxy path`);
+  }
+});
+
 /**
  * The handler end to end, with Supabase swapped for a stub row: what query it
  * sends, what it writes into the head, and what it does when there is nothing

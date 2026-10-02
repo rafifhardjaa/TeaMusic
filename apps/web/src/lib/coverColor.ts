@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { apiUrl } from './api';
 
 /** Side of the offscreen sample. The bucket average below does the real work, so
  *  a bigger grid only costs read time. */
@@ -74,9 +75,12 @@ function readDominant(img: HTMLImageElement): string | null {
  * loading and null again if the read is refused. Callers are expected to treat
  * null as "no tint" rather than as an error.
  *
- * Artwork is fetched through `/api/image`, which is same-origin for the same
- * reason CoverArt routes its export-path images there: a same-origin canvas read
- * is untainted, so no CORS headers are needed on the proxy.
+ * Artwork is fetched through the API's `/api/image` proxy (resolved against
+ * `VITE_API_BASE_URL`, so the bare path only survives in dev where the Vite
+ * proxy makes it same-origin). On production the API is another origin, so the
+ * image is requested with `crossOrigin = 'anonymous'`: the proxy's CORS answer
+ * is what keeps the canvas read untainted there, and the attribute is a no-op
+ * for the same-origin dev path.
  */
 export function useCoverColor(coverUrl: string): string | null {
   const [sampled, setSampled] = useState<{ url: string; hex: string | null } | null>(null);
@@ -86,6 +90,9 @@ export function useCoverColor(coverUrl: string): string | null {
     if (!coverUrl) return;
 
     const img = new Image();
+    // Must be set before src: it is the CORS mode of the fetch itself, and a
+    // retroactive flag arrives after the canvas is already tainted.
+    img.crossOrigin = 'anonymous';
     img.onload = () => {
       const hex = readDominant(img);
       if (hex) cache.set(coverUrl, hex);
@@ -94,7 +101,7 @@ export function useCoverColor(coverUrl: string): string | null {
     // A failed load never fires onload, so the card simply keeps its wash.
     // The cache-busting query is shared with CoverArt so the canvas extractor
     // and the DOM image never see a different blob for the same cover.
-    img.src = `/api/image?url=${encodeURIComponent(coverUrl)}&cb=${Date.now()}`;
+    img.src = `${apiUrl('/api/image')}?url=${encodeURIComponent(coverUrl)}&cb=${Date.now()}`;
 
     return () => {
       live = false;

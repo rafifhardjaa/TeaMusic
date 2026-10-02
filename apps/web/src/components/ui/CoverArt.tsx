@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { apiUrl } from '../../lib/api';
 
 interface Props {
   src: string;
@@ -11,10 +12,14 @@ interface Props {
    */
   cacheBust?: boolean;
   /**
-   * Routes the image through the same-origin `/api/image` proxy. Required on
-   * the export path: html-to-image re-fetches each <img> with CORS, and a raw
-   * `cover_url` host that does not answer with CORS headers fails that fetch,
-   * which would drop the artwork out of the PNG.
+   * Routes the image through the API's `/api/image` proxy, resolved against
+   * `VITE_API_BASE_URL` (in dev that is empty, so the Vite proxy keeps it
+   * same-origin). A bare relative path only works when the API is hosted on
+   * the same origin as the app — on the Vercel deploy it would hit the SPA
+   * rewrite, answer with HTML, and drop the artwork out of the export.
+   * Required on the export path: html-to-image re-fetches each <img> with
+   * CORS, and a raw `cover_url` host that does not answer with CORS headers
+   * fails that fetch, which would drop the artwork out of the PNG.
    */
   viaProxy?: boolean;
 }
@@ -47,7 +52,7 @@ export function CoverArt({ src, alt, className = '', rounded = 'rounded-lg', via
     );
   }
 
-  const proxied = viaProxy ? `/api/image?url=${encodeURIComponent(src)}` : src;
+  const proxied = viaProxy ? `${apiUrl('/api/image')}?url=${encodeURIComponent(src)}` : src;
   const resolvedSrc = cacheBust
     ? `${proxied}${proxied.includes('?') ? '&' : '?'}cb=${cacheBustTimestamp}`
     : proxied;
@@ -57,9 +62,10 @@ export function CoverArt({ src, alt, className = '', rounded = 'rounded-lg', via
       src={resolvedSrc}
       alt={alt}
       /*
-        Set on the export path only. The proxy is same-origin, so canvas reads
-        these bytes either way; the attribute states the requirement and keeps
-        the export working if the src is ever swapped for the CDN directly.
+        Set on the export path only. The proxy answers with CORS for this
+        site, so canvas reads inside html-to-image succeed either way; the
+        attribute states the requirement and keeps the export working if the
+        src is ever swapped for the CDN directly.
         Deliberately absent elsewhere: cover_url is free text from an untrusted
         column, and a host that answers without CORS headers would then fail to
         load at all.
