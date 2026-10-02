@@ -93,9 +93,8 @@ export function truncate(value: string, max: number): string {
 }
 
 /**
- * iTunes hands out a thumbnail URL and the API only ever rewrites it to 600px
- * (`apps/api/src/itunes.ts`); a link preview wants a larger source so the card
- * is not interpolated up from a stamp.
+ * iTunes hands out a 100px thumbnail (the app shows 600px); a link preview
+ * wants a larger source so the card is not interpolated up from a stamp.
  */
 export function upsizeCover(url: string): string {
   if (!url.startsWith('https://')) return '';
@@ -112,9 +111,24 @@ function titleCase(value: string): string {
   return value.replace(/\b[\p{L}]/gu, (char) => char.toUpperCase());
 }
 
+/**
+ * The dashboards' value field collects two paste mistakes, and this runtime
+ * cannot share the client's normalizer (`env.ts` reads `import.meta.env`,
+ * which does not exist here): a whole `NAME=value` line in the value, and the
+ * REST suffix `…/rest/v1` — which would double into `/rest/v1/rest/v1/…`,
+ * 404, and silently degrade every share card to the generic one. Mirrors
+ * `unwrap` in `apps/web/src/lib/env.ts`.
+ */
+function unwrap(name: string, value: string | undefined): string {
+  const raw = (value ?? '').trim();
+  return raw.startsWith(`${name}=`) ? raw.slice(name.length + 1).trim() : raw;
+}
+
 async function supabaseSelect(env: Env, search: string): Promise<MessageRow[]> {
-  const base = env.VITE_SUPABASE_URL?.replace(/\/+$/, '');
-  const key = env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const base = unwrap('VITE_SUPABASE_URL', env.VITE_SUPABASE_URL)
+    .replace(/\/rest\/v1\/?$/, '')
+    .replace(/\/+$/, '');
+  const key = unwrap('VITE_SUPABASE_PUBLISHABLE_KEY', env.VITE_SUPABASE_PUBLISHABLE_KEY);
   if (!base || !key) return [];
 
   const select = 'id,recipient,message,track_name,artist_name,cover_url';

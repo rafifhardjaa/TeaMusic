@@ -199,6 +199,23 @@ async function integration(): Promise<void> {
       assert.ok(body.includes('50%_off, someone said this.'));
     });
 
+    await checkAsync('tolerates a pasted NAME=value line and the REST suffix', async () => {
+      queried = '';
+      const messy: Env = {
+        ASSETS: env.ASSETS,
+        // Both mistakes seen in the wild: the whole line pasted into the
+        // value, and the REST URL instead of the project URL — without the
+        // unwrap the edge query would hit /rest/v1/rest/v1/… and 404 into
+        // the generic card.
+        VITE_SUPABASE_URL: 'VITE_SUPABASE_URL=https://project.supabase.co/rest/v1/',
+        VITE_SUPABASE_PUBLISHABLE_KEY: 'VITE_SUPABASE_PUBLISHABLE_KEY=anon-key',
+      };
+      const response = await onRequest({ request: new Request(`https://teamusic.my.id/?m=${row.id}`), messy });
+      const body = await response.text();
+      assert.ok(queried.startsWith('https://project.supabase.co/rest/v1/messages'), `queried ${queried}`);
+      assert.ok(body.includes('<title>A song for Galih</title>'));
+    });
+
     await checkAsync('answers HEAD with headers and an empty body', async () => {
       const response = await onRequest({ request: new Request('https://teamusic.my.id/?m=0b3f9c1e-1f4b-4a0d-9f4a-6f3f2a1b0c9d', { method: 'HEAD' }), env });
       assert.equal(response.status, 200);
