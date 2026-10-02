@@ -17,6 +17,15 @@ export interface AppConfig {
   allowedOrigin: string;
   appEnv: string;
   debug: boolean;
+  /**
+   * Upstash REST credentials for the rate limiter (`src/rateLimit.ts`).
+   * Both stay empty unless the deploy or the local env file provides them —
+   * an empty pair is the documented "limiter off" state, not a misconfig.
+   * The token arrives as a Cloudflare Worker secret on production, which
+   * binds it into the same env object the `[vars]` land in.
+   */
+  upstashUrl: string;
+  upstashToken: string;
 }
 
 /**
@@ -37,6 +46,8 @@ export function loadConfig(source: EnvSource): AppConfig {
     allowedOrigin: source.ALLOWED_ORIGIN ?? 'http://localhost:5173',
     appEnv,
     debug,
+    upstashUrl: source.UPSTASH_REDIS_REST_URL?.trim() || '',
+    upstashToken: source.UPSTASH_REDIS_REST_TOKEN?.trim() || '',
   };
 }
 

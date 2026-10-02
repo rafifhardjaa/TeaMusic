@@ -78,14 +78,18 @@ cp apps/web/.env.example apps/web/.env.local
 | `VITE_APP_ENV`                  | Optional. Browser mirror of the API's `APP_ENV`  |
 | `VITE_APP_DEBUG`                | Optional. Browser mirror of the API's `APP_DEBUG`|
 
-The API needs no credentials at all — it never talks to the provider either (see the API section). Its optional config lives in `apps/api/.env` (copy `apps/api/.env.example`):
+The API needs no provider credentials — it never talks to the provider (see
+the API section). Its optional config lives in `apps/api/.env` (copy
+`apps/api/.env.example`):
 
-| Variable        | What it is                                                  |
-| --------------- | ----------------------------------------------------------- |
-| `APP_ENV`       | `production` fails closed; `development` unlocks detail      |
-| `APP_DEBUG`     | `true` only matters alongside a non-production `APP_ENV`     |
-| `PORT`          | Defaults to `8787`                                          |
-| `ALLOWED_ORIGIN`| The one origin allowed to call cross-origin (CORS)          |
+| Variable                     | What it is                                             |
+| ---------------------------- | ------------------------------------------------------ |
+| `APP_ENV`                    | `production` fails closed; `development` unlocks detail |
+| `APP_DEBUG`                  | `true` only matters alongside a non-production `APP_ENV`|
+| `PORT`                       | Defaults to `8787`                                     |
+| `ALLOWED_ORIGIN`             | The one origin allowed to call cross-origin (CORS)     |
+| `UPSTASH_REDIS_REST_URL`     | Upstash database for the rate limiter; absent = off    |
+| `UPSTASH_REDIS_REST_TOKEN`   | The REST token for that database; same rule            |
 
 `VITE_APP_ENV` / `VITE_APP_DEBUG` are mirrors, not the same variables: the
 browser cannot read the API's and the API never sees a `VITE_` name. Both
@@ -158,6 +162,25 @@ The proxy fetches server side, where the same-origin policy does not apply. It
 is restricted to `mzstatic.com` and `apple.com` over https, with a
 content-type allowlist and a 4 MB cap, so it is not an open proxy.
 
+### Rate limiting
+
+Three routes are counted per caller address in Upstash Redis
+(`src/rateLimit.ts`): `/api/image` and `/api/meta` allow 30 hits per minute,
+`/api/errors` 10 per hour — the proxy costs an upstream fetch and the error
+sink is an unbounded public POST. `/api/health` stays out on purpose: uptime
+probes run on a schedule nobody controls, and a probe answered with 429 is a
+false alarm, not a saved resource.
+
+Over the limit the answer is `429` with `retry-after` and the usual CORS
+pair, so the browser can read the refusal it caused. Everything else fails
+open — no Upstash binding, a slow database, a dead one: the request is
+served, because a rate limiter is a brake pedal, never an engine part. The
+token lives as a Worker secret (`wrangler secret put
+UPSTASH_REDIS_REST_TOKEN`) and in `apps/api/.env.local` locally; with both
+values absent the limiter simply stays off. `pnpm run check:ratelimit`
+proves the counting, the one-time TTL, the 429 shape, and both fail-open
+directions.
+
 ## Verify
 
 ```bash
@@ -167,6 +190,7 @@ pnpm run build          # production bundle
 
 pnpm run check:api      # track cache: hit, 404, transport failure, abort
 pnpm run check:phosphor # weight trim keeps every icon loadable
+pnpm run check:ratelimit # counting, one-time TTL, 429 shape, fail-open
 pnpm run check:security # env reads, console calls confined to their modules
 pnpm run check:sanitize # breadcrumb scrubber drops hostile input
 pnpm run check:seo      # share card rewrite, escaping, crawl surface
@@ -197,11 +221,20 @@ keeps both honest from the browser. Neither host needs a payment method.
   requests per day, and this API is nowhere near it.
 - **Environment:** lives in `wrangler.toml` under `[vars]`:
 
-  | Variable         | Value                   | Why                                   |
-  | ---------------- | ----------------------- | ------------------------------------- |
-  | `APP_ENV`        | `production`            | forces every verbose path off         |
-  | `APP_DEBUG`      | `false`                 | belt and braces — production ignores it anyway |
-  | `ALLOWED_ORIGIN` | `https://teamusic.my.id` | the only origin the API answers with CORS headers |
+  | Variable                     | Value                   | Why                                   |
+  | ---------------------------- | ----------------------- | ------------------------------------- |
+  | `APP_ENV`                    | `production`            | forces every verbose path off         |
+  | `APP_DEBUG`                  | `false`                 | belt and braces — production ignores it anyway |
+  | `ALLOWED_ORIGIN`             | `https://teamusic.my.id` | the only origin the API answers with CORS headers |
+  | `UPSTASH_REDIS_REST_URL`     | `https://…upstash.io`   | rate limiter backend (`src/rateLimit.ts`) |
+
+  The matching token is not a `[vars]` entry — it would land in git. It goes
+  on as a Worker secret, which binds it into the same env object:
+
+  ```bash
+  cd apps/api
+  printf '%s' "$UPSTASH_REDIS_REST_TOKEN" | bunx wrangler secret put UPSTASH_REDIS_REST_TOKEN
+  ```
 
   Nothing else: messages go browser → Supabase directly, and track lookups
   never pass through this worker — the browser calls iTunes itself.

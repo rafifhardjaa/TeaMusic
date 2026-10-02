@@ -28,6 +28,13 @@ APP_ENV = "production"
 APP_DEBUG = "false"
 ALLOWED_ORIGIN = "https://teamusic.my.id"
 
+# Upstash REST endpoint behind the rate limiter (src/rateLimit.ts). Only the
+# URL lives here; the token is a Worker secret — `wrangler secret put
+# UPSTASH_REDIS_REST_TOKEN` — so it can never land in git. With either value
+# missing the limiter stays off, which is what keeps a fresh dev process and
+# every check script independent of this file.
+UPSTASH_REDIS_REST_URL = "https://perfect-oarfish-226192.upstash.io"
+
 # /api/errors exists to record production crashes; Workers Logs is where
 # those lines land (included in the free tier).
 [observability]

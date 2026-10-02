@@ -2,11 +2,14 @@ import { CloudflareAdapter } from 'elysia/adapter/cloudflare-worker';
 import { createApp } from './app';
 import { reconfigure, type EnvSource } from './config';
 
-/** The `[vars]` bindings wrangler ships from wrangler.toml. */
+/** The `[vars]` bindings wrangler ships from wrangler.toml, plus the
+ *  UPSTASH_REDIS_REST_TOKEN Worker secret (`wrangler secret put`). */
 interface WorkerEnv extends EnvSource {
   APP_ENV?: string;
   APP_DEBUG?: string;
   ALLOWED_ORIGIN?: string;
+  UPSTASH_REDIS_REST_URL?: string;
+  UPSTASH_REDIS_REST_TOKEN?: string;
 }
 
 /**

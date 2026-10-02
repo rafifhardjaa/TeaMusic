@@ -3,6 +3,7 @@ import { config } from './config';
 import { ZODIAC_SIGNS, MOODS } from './domain';
 import { imageRoutes } from './image';
 import { logBreadcrumb, logError } from './log';
+import { checkRateLimit } from './rateLimit';
 
 /**
  * What this API carries: the static surface (health, zodiac/mood metadata),
@@ -73,7 +74,7 @@ export function createApp(adapter?: ElysiaAdapter) {
   };
 
   return new Elysia(adapter ? { adapter } : {})
-    .onRequest(({ request, set }) => {
+    .onRequest(async ({ request, set }) => {
       const origin = request.headers.get('origin');
       const allowed = origin !== null && origin.toLowerCase() === allowedOrigin();
 
@@ -88,6 +89,27 @@ export function createApp(adapter?: ElysiaAdapter) {
 
       if (allowed && origin !== null) {
         Object.assign(set.headers, corsHeaders(origin));
+      }
+
+      /*
+        Abuse control for the routes that cost something, before any handler
+        runs — a limited request never reaches the proxy or the error sink.
+        The preflight above returns first, so an OPTIONS never spends a Redis
+        round trip. `cf-connecting-ip` is Cloudflare's view of the client; a
+        Bun dev process has no such header and shares one bucket, which is
+        irrelevant locally, where the limiter is typically off anyway.
+      */
+      const limited = await checkRateLimit(new URL(request.url).pathname, request.headers.get('cf-connecting-ip'));
+      if (limited) {
+        const headers: Record<string, string> = {
+          'content-type': 'application/json; charset=utf-8',
+          'retry-after': String(limited.retryAfterSec),
+        };
+        // A Response returned from here replaces the `set.headers` assigned
+        // above wholesale, so the CORS pair is re-attached by hand — a
+        // browser must be able to read the 429 it caused.
+        if (allowed && origin !== null) Object.assign(headers, corsHeaders(origin));
+        return new Response(JSON.stringify({ error: 'Too many requests' }), { status: 429, headers });
       }
     })
     /**

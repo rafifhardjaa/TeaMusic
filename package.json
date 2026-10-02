@@ -12,6 +12,7 @@
     "typecheck": "pnpm --dir apps/web exec tsc -b && bun run --cwd apps/api typecheck",
     "check:api": "pnpm --dir apps/web run check:api",
     "check:phosphor": "pnpm --dir apps/web run check:phosphor",
+    "check:ratelimit": "bun run scripts/rateLimit.check.ts",
     "check:security": "bun run scripts/security.check.ts",
     "check:seo": "bun run scripts/seo.check.ts",
     "check:sanitize": "bun run scripts/sanitize.check.ts",
