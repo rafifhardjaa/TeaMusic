@@ -25,7 +25,7 @@ export function ZodiacRail({ onChange }: RailProps) {
   const setZodiac = useComposer((state) => state.setZodiac);
 
   function choose(sign: ZodiacSign, node: HTMLElement) {
-    setZodiac(sign);
+    setZodiac(zodiac === sign ? null : sign);
     onChange?.();
     pop(node);
   }
@@ -77,7 +77,7 @@ export function MoodGrid({ onChange }: RailProps) {
   const setMood = useComposer((state) => state.setMood);
 
   function choose(option: Mood, node: HTMLElement) {
-    setMood(option);
+    setMood(mood === option ? null : option);
     onChange?.();
     pop(node);
   }
