@@ -7,14 +7,18 @@ Anonymous song messages with a note attached. Pick a track, write the message, m
 | Create | Sent |
 | ------ | ---- |
 | ![Create page — fill in recipient, note, and track with a live preview panel on the right](https://raw.githubusercontent.com/rafifhardjaa/TeaMusic/main/docs/create.png) | ![Create form — filled in with recipient "rebeca", note "my beatiful girls", track "Beautiful Girls" by Sean Kingston](https://raw.githubusercontent.com/rafifhardjaa/TeaMusic/main/docs/create-form.png) |
+| The create page with a how-it-works guide at the top, a two-column layout — the form on the left and a live card preview on the right that updates as you type. | Filled-in form: recipient "rebeca", note "my beatiful girls", track "Beautiful Girls" by Sean Kingston. The preview card on the right mirrors the input in real time. |
 
 | After sending | Inbox |
 | ------------- | ----- |
 | ![On its way — confirmation screen with shareable link, Download and Share buttons, then the Mix track flow below](https://raw.githubusercontent.com/rafifhardjaa/TeaMusic/main/docs/create-send.png) | ![Inbox for "nisa" — whispers listed newest first, each card shows the note, track, and an "Answer with a track" button](https://raw.githubusercontent.com/rafifhardjaa/TeaMusic/main/docs/inbox.png) |
+| Confirmation screen after sending — shows the track sent, a shareable link with a Copy button, and Share / Download actions. Below it, the Mix track flow lets you pick a zodiac and mood to send another. | Inbox for "nisa" — all whispers addressed to that name, newest first. Each card shows the note, cover art, track name, and an "Answer with a track" button. No sender is ever stored. |
 
 **Browse** — search by recipient name or explore the latest whispers filtered by vibe.
 
 ![Browse page — 20 results grid showing notes with cover art, recipient names, and relative timestamps](https://raw.githubusercontent.com/rafifhardjaa/TeaMusic/main/docs/browse.png)
+
+Search a recipient by name, or scroll through the latest 20 whispers. Each card shows the note, cover art, track, and how long ago it was sent. Filter by vibe to narrow it down.
 
 ## Stack
 
@@ -37,12 +41,6 @@ apps/web       React frontend (pnpm)
 apps/api       ElysiaJS API (Bun)
 supabase       schema.sql
 scripts        dev.mjs, runs both servers together
-
-# local only, gitignored — kept on disk, never committed:
-BOOK           PRD, ARCHITECTURE, DATABASE, DESIGN, RULES
-PROGRESS.md    What was built, and the bugs found while verifying it
-TODO.md        Feature checklist
-STATUS.md      Current state, quality gates, known constraints
 ```
 
 ## Design
