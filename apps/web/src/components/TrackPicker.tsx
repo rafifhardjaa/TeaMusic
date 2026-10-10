@@ -5,6 +5,7 @@ import { searchTracks } from '../lib/api';
 import { formatDuration } from '../lib/format';
 import { isAbortError, useLatestRequest } from '../lib/useLatestRequest';
 import type { Track } from '../lib/types';
+import { useAudioStore } from '../store/audio';
 import { PreviewToggle, VolumeControl } from './PreviewControls';
 import { MetaLabel } from './ui/Card';
 import { CoverArt } from './ui/CoverArt';
@@ -38,6 +39,7 @@ export function TrackPicker({ selected, onSelect, ref }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const fetcher = useLatestRequest();
+  const stop = useAudioStore((state) => state.stop);
 
   /**
    * One place for both kinds of lookup. Cancels whatever is in flight, sets
@@ -73,11 +75,12 @@ export function TrackPicker({ selected, onSelect, ref }: Props) {
 
   const clear = useCallback(() => {
     fetcher.cancel();
+    stop();
     setQuery('');
     setResults([]);
     setError(null);
     setTouched(false);
-  }, [fetcher]);
+  }, [fetcher, stop]);
 
   useImperativeHandle(ref, () => ({ reset: clear }), [clear]);
 
@@ -105,14 +108,19 @@ export function TrackPicker({ selected, onSelect, ref }: Props) {
   // A tap anywhere outside the picker closes the results card — same
   // outside-tap pattern as Nav. Taps on the dropdown itself are inside the
   // root, so picking a row (or its play button) still lands normally.
+  // Closing the card stops any row preview: dropdown gone != audio stop,
+  // store global still play otherwise.
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+        stop();
+      }
     };
     document.addEventListener('pointerdown', onPointerDown);
     return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, [open]);
+  }, [open, stop]);
 
   if (selected) {
     return (
@@ -124,7 +132,11 @@ export function TrackPicker({ selected, onSelect, ref }: Props) {
         </div>
         <button
           type="button"
-          onClick={() => onSelect(null)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect(null);
+            stop();
+          }}
           aria-label="Change track"
           className="rounded-full p-2 text-ink-soft transition-colors hover:text-accent"
         >
@@ -207,11 +219,16 @@ export function TrackPicker({ selected, onSelect, ref }: Props) {
 }
 
 export function TrackRow({ track, onSelect }: { track: Track; onSelect: (track: Track) => void }) {
+  const stop = useAudioStore((state) => state.stop);
   return (
     <li className="group flex items-center gap-2 rounded-xl p-2 transition-colors duration-200 hover:bg-paper-alt" role="option">
       <button
         type="button"
-        onClick={() => onSelect(track)}
+        onClick={(e) => {
+          e.stopPropagation();
+          stop();
+          onSelect(track);
+        }}
         className="flex min-w-0 flex-1 items-center gap-3 text-left"
       >
         <CoverArt src={track.coverUrl} alt="" className="h-11 w-11" rounded="rounded-md" />
