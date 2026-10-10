@@ -2,6 +2,20 @@
 
 Anonymous song messages with a note attached. Pick a track, write the message, mix a vibe onto it, share the story image. The recipient opens a link, the song plays, and they find out it was for them. Your name never appears.
 
+## Screenshots
+
+| Create | Sent |
+| ------ | ---- |
+| ![Create page — fill in recipient, note, and track with a live preview panel on the right](dokumentasi/create.png) | ![Create form — filled in with recipient "rebeca", note "my beatiful girls", track "Beautiful Girls" by Sean Kingston](dokumentasi/create-form.png) |
+
+| After sending | Inbox |
+| ------------- | ----- |
+| ![On its way — confirmation screen with shareable link, Download and Share buttons, then the Mix track flow below](dokumentasi/create-send.png) | ![Inbox for "nisa" — whispers listed newest first, each card shows the note, track, and an "Answer with a track" button](dokumentasi/inbox.png) |
+
+**Browse** — search by recipient name or explore the latest whispers filtered by vibe.
+
+![Browse page — 20 results grid showing notes with cover art, recipient names, and relative timestamps](dokumentasi/browse.png)
+
 ## Stack
 
 | Layer      | Choice                                       |
