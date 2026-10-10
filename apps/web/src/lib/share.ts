@@ -200,6 +200,28 @@ export async function shareStoryImage(
   }
 }
 
+export async function downloadStoryImage(
+  node: HTMLElement,
+  message: Message,
+): Promise<'downloaded' | 'failed'> {
+  let blob: Blob;
+  try {
+    await imagesReady(node);
+    blob = await renderStoryCard(node);
+  } catch {
+    return 'failed';
+  }
+
+  const filename = `${FILENAME_STEM}-${slug(message.recipient)}.png`;
+
+  try {
+    downloadBlob(blob, filename);
+    return 'downloaded';
+  } catch {
+    return 'failed';
+  }
+}
+
 /**
  * Shares the message through the native Web Share API when it exists,
  * otherwise drops the link on the clipboard. The payload is shaped for
