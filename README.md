@@ -6,15 +6,15 @@ Anonymous song messages with a note attached. Pick a track, write the message, m
 
 | Create | Sent |
 | ------ | ---- |
-| ![Create page — fill in recipient, note, and track with a live preview panel on the right](dokumentasi/create.png) | ![Create form — filled in with recipient "rebeca", note "my beatiful girls", track "Beautiful Girls" by Sean Kingston](dokumentasi/create-form.png) |
+| ![Create page — fill in recipient, note, and track with a live preview panel on the right](https://raw.githubusercontent.com/rafifhardjaa/TeaMusic/main/docs/create.png) | ![Create form — filled in with recipient "rebeca", note "my beatiful girls", track "Beautiful Girls" by Sean Kingston](https://raw.githubusercontent.com/rafifhardjaa/TeaMusic/main/docs/create-form.png) |
 
 | After sending | Inbox |
 | ------------- | ----- |
-| ![On its way — confirmation screen with shareable link, Download and Share buttons, then the Mix track flow below](dokumentasi/create-send.png) | ![Inbox for "nisa" — whispers listed newest first, each card shows the note, track, and an "Answer with a track" button](dokumentasi/inbox.png) |
+| ![On its way — confirmation screen with shareable link, Download and Share buttons, then the Mix track flow below](https://raw.githubusercontent.com/rafifhardjaa/TeaMusic/main/docs/create-send.png) | ![Inbox for "nisa" — whispers listed newest first, each card shows the note, track, and an "Answer with a track" button](https://raw.githubusercontent.com/rafifhardjaa/TeaMusic/main/docs/inbox.png) |
 
 **Browse** — search by recipient name or explore the latest whispers filtered by vibe.
 
-![Browse page — 20 results grid showing notes with cover art, recipient names, and relative timestamps](dokumentasi/browse.png)
+![Browse page — 20 results grid showing notes with cover art, recipient names, and relative timestamps](https://raw.githubusercontent.com/rafifhardjaa/TeaMusic/main/docs/browse.png)
 
 ## Stack
 
