@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, Copy, DownloadSimple, ImageSquare, ShareNetwork } from '@phosphor-icons/react';
-import { downloadStoryCard, shareMessage, shareStoryImage } from '../lib/share';
+import { Check, Copy, Download, ShareNetwork } from '@phosphor-icons/react';
+import { shareMessage, downloadStoryImage } from '../lib/share';
 import { useToast } from '../store/toast';
 import type { Message } from '../lib/types';
 import { StoryCard } from './StoryCard';
@@ -23,7 +23,7 @@ export function SentCard({ message, onAnother }: { message: Message; onAnother: 
   const showToast = useToast((state) => state.show);
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
-  const [busy, setBusy] = useState<'download' | 'share-image' | null>(null);
+  const [busy, setBusy] = useState<'download-image' | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
 
   const shareUrl = `${window.location.origin}/?m=${message.id}`;
@@ -45,30 +45,14 @@ export function SentCard({ message, onAnother }: { message: Message; onAnother: 
     else if (result === 'failed') setFeedback('Could not share');
   }
 
-  async function handleShareImage() {
+  async function handleDownloadImage() {
     if (!storyRef.current) return;
-    setBusy('share-image');
+    setBusy('download-image');
     setFeedback(null);
     try {
-      const result = await shareStoryImage(storyRef.current, message);
-      if (result === 'shared') setFeedback('Image shared');
-      else if (result === 'downloaded') setFeedback('Image saved — share sheets cannot take files here');
+      const result = await downloadStoryImage(storyRef.current, message);
+      if (result === 'downloaded') setFeedback('Image saved');
       else if (result === 'failed') setFeedback('Could not render the image');
-      // 'cancelled' is the user closing the sheet; no message needed.
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function handleDownload() {
-    if (!storyRef.current) return;
-    setBusy('download');
-    setFeedback(null);
-    try {
-      await downloadStoryCard(storyRef.current, message.recipient);
-      setFeedback('Image saved');
-    } catch {
-      setFeedback('Could not render the image');
     } finally {
       setBusy(null);
     }
@@ -120,13 +104,9 @@ export function SentCard({ message, onAnother }: { message: Message; onAnother: 
           <ShareNetwork size={15} weight="light" />
           Share
         </Button>
-        <Button variant="secondary" onClick={() => void handleShareImage()} disabled={busy !== null}>
-          <ImageSquare size={15} weight="light" />
-          {busy === 'share-image' ? 'Preparing' : 'Share image'}
-        </Button>
-        <Button variant="secondary" onClick={() => void handleDownload()} disabled={busy !== null}>
-          <DownloadSimple size={15} weight="light" />
-          {busy === 'download' ? 'Rendering' : 'Download'}
+        <Button variant="secondary" onClick={() => void handleDownloadImage()} disabled={busy !== null}>
+          <Download size={15} weight="light" />
+          {busy === 'download-image' ? 'Preparing' : 'Download'}
         </Button>
         <Button variant="ghost" onClick={onAnother}>
           Send another
